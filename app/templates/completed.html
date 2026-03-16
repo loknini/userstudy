@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - 完成{% endblock %}
+{% block nav_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card text-center py-5">
+            <div class="card-body">
+                <div class="mb-4">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                </div>
+                <h3 class="card-title mb-3">感谢您的参与！</h3>
+                <p class="card-text text-muted mb-4">
+                    您已完成所有问题，您的回答已成功记录。<br>
+                    本研究需要您的真实反馈，感谢您的认真参与！
+                </p>
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                    {% if study %}
+                    <a href="/study/{{ study.code }}" class="btn btn-primary">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        返回问卷首页
+                    </a>
+                    {% endif %}
+                    <a href="/" class="btn btn-outline-primary">
+                        <i class="bi bi-house me-1"></i>
+                        返回总首页
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,737 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - 问题 {{ qidx + 1 }}/{{ total_questions }}{% endblock %}
+{% block nav_title %}{{ title }}{% endblock %}
+
+{% block nav_extra %}
+<div class="navbar-nav ms-auto">
+    <span class="nav-link text-light">
+        第 {{ qidx + 1 }} / {{ total_questions }} 题
+    </span>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 缩略图容器 */
+    .img-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 3px solid transparent;
+        overflow: hidden;
+    }
+    .img-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+    }
+    .img-card.selected {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25) !important;
+    }
+    .img-card input[type="radio"] {
+        display: none;
+    }
+    .select-label {
+        cursor: pointer;
+        margin: 0;
+        border-top: 1px solid rgba(0,0,0,0.125);
+    }
+    .img-card .check-icon {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 32px;
+        height: 32px;
+        background: #0d6efd;
+        border-radius: 50%;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        z-index: 10;
+    }
+    .img-card.selected .check-icon {
+        display: flex;
+    }
+    
+    /* 缩略图样式 - 正方形 */
+    .thumbnail-container {
+        position: relative;
+        overflow: hidden;
+        background: #f0f0f0;
+        aspect-ratio: 1 / 1;
+        width: 100%;
+    }
+    .thumbnail-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+    .img-card:hover .thumbnail-container img {
+        transform: scale(1.05);
+    }
+    
+    /* 答题概览折叠样式 */
+    .overview-header {
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .overview-header:hover {
+        background: rgba(0,0,0,0.02);
+    }
+    .overview-toggle {
+        transition: transform 0.3s ease;
+        font-size: 14px;
+        color: #6c757d;
+    }
+    .overview-toggle.collapsed {
+        transform: rotate(-90deg);
+    }
+    .overview-content {
+        padding: 1rem;
+    }
+    .overview-content.collapsed .question-overview {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: center;
+        gap: 8px;
+        overflow: hidden;
+    }
+    .overview-content.collapsed .question-dot {
+        display: none;
+    }
+    .overview-content.collapsed .question-dot.visible {
+        display: flex;
+    }
+    .overview-content.collapsed .overview-current-info {
+        display: none;
+    }
+    
+    /* 放大按钮容器 */
+    .zoom-controls {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%; /* 使用100%，按钮定位在图片区域内 */
+        pointer-events: none;
+        z-index: 10;
+    }
+    .img-card:hover .zoom-controls .zoom-btn,
+    .img-card:hover .zoom-controls .zoom-hint {
+        opacity: 1;
+    }
+    
+    /* 放大按钮 */
+    .zoom-btn {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        width: 36px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 11;
+        pointer-events: auto;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .zoom-btn:hover {
+        background: #0d6efd;
+        color: white;
+        transform: scale(1.1);
+    }
+    
+    /* 灯箱模态框 */
+    .lightbox-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .lightbox-modal.active {
+        display: flex;
+    }
+    .lightbox-content {
+        position: relative;
+        max-width: 90%;
+        max-height: 90%;
+    }
+    .lightbox-content img {
+        max-width: 100%;
+        max-height: 85vh;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .lightbox-close {
+        position: absolute;
+        top: -50px;
+        right: 0;
+        width: 40px;
+        height: 40px;
+        background: rgba(255,255,255,0.2);
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+    .lightbox-close:hover {
+        background: rgba(255,255,255,0.4);
+        transform: rotate(90deg);
+    }
+    .lightbox-caption {
+        position: absolute;
+        bottom: -50px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: white;
+        font-size: 16px;
+        padding: 10px;
+    }
+    
+    /* 提示文字 */
+    .zoom-hint {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.6);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 12px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: auto;
+        cursor: pointer;
+        white-space: nowrap;
+        z-index: 11;
+    }
+    
+    .question-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+        gap: 8px;
+        justify-items: center;
+        max-width: 100%;
+        padding: 4px;
+    }
+    .question-dot {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 2px solid #dee2e6;
+        background: white;
+        color: #6c757d;
+        font-weight: 500;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+    .question-dot:hover {
+        transform: scale(1.1);
+        border-color: #adb5bd;
+    }
+    .question-dot.current {
+        background: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+    .question-dot.answered {
+        background: #198754;
+        color: white;
+        border-color: #198754;
+    }
+    
+    /* PC端：一行4个图片 */
+    @media (min-width: 992px) {
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        .image-grid > .col {
+            width: 100%;
+            padding: 0;
+        }
+    }
+    
+    /* 平板端：一行2个 */
+    @media (min-width: 769px) and (max-width: 991px) {
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .image-grid > .col {
+            width: 100%;
+            padding: 0;
+        }
+    }
+    
+    /* 移动端：一行2个 */
+    @media (max-width: 768px) {
+        /* 调整主容器边距，给图片区域留白 */
+        .container {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-left: -5px;
+            margin-right: -5px;
+        }
+        .image-grid > .col {
+            width: 100%;
+            padding: 0 5px;
+        }
+        .img-card {
+            min-height: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .thumbnail-container {
+            aspect-ratio: 1 / 1;
+            flex: 1;
+        }
+        .select-label {
+            padding: 8px !important;
+            font-size: 13px;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .select-label input[type="radio"] {
+            display: none;
+        }
+        .zoom-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 36px); /* 只覆盖图片区域，减去标签高度 */
+            pointer-events: none;
+            z-index: 10;
+        }
+        .zoom-btn {
+            opacity: 1;
+            width: 28px;
+            height: 28px;
+            font-size: 12px;
+            bottom: 8px;
+            right: 8px;
+        }
+        .zoom-hint {
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 12px;
+        }
+        .img-card:hover .zoom-controls .zoom-btn,
+        .img-card:hover .zoom-controls .zoom-hint {
+            opacity: 1;
+        }
+        .question-overview {
+            grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+            gap: 6px;
+        }
+        .question-dot {
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 12px !important;
+        }
+        .lightbox-content img {
+            max-height: 70vh;
+        }
+        .card-title {
+            font-size: 15px;
+        }
+        .check-icon {
+            width: 22px;
+            height: 22px;
+            top: 6px;
+            right: 6px;
+            font-size: 12px;
+        }
+        /* 移动端概览折叠时只显示当前题号附近 */
+        .overview-content.collapsed .question-overview {
+            gap: 4px;
+        }
+        /* 移动端紧凑布局 */
+        main.container {
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+        .card.mb-3 {
+            margin-bottom: 0.75rem !important;
+        }
+        .image-grid {
+            margin-top: 0.25rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- 进度条 -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted">进度</span>
+                    <span class="text-primary fw-medium" id="progressText">{{ "%.0f"|format(progress_percent) }}%</span>
+                </div>
+                <div class="progress">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         style="width: {{ progress_percent }}%"
+                         aria-valuenow="{{ progress_percent }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 答题概览面板 -->
+        <div class="card mb-3">
+            <div class="card-header bg-light overview-header" onclick="toggleOverview()">
+                <div>
+                    <i class="bi bi-grid-3x3-gap me-2"></i>
+                    答题概览
+                    <span class="text-muted small ms-2">(点击展开/收起)</span>
+                </div>
+                <i class="bi bi-chevron-down overview-toggle" id="overviewToggle"></i>
+            </div>
+            <div class="card-body overview-content collapsed" id="overviewContent">
+                <div class="question-overview" id="questionOverview">
+                    <!-- 题号将通过 JavaScript 生成 -->
+                </div>
+                <div class="overview-current-info">
+                    当前第 <span class="current-q">{{ qidx + 1 }}</span> 题 / 共 {{ total_questions }} 题
+                </div>
+            </div>
+        </div>
+
+        <!-- 问题描述 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">{{ prompt|safe }}</h5>
+            </div>
+        </div>
+
+        <!-- 图片选择 -->
+        <form id="answerForm" method="post" action="{{ '/study/' + study_code + '/submit/' + qidx|string if study_code else '/submit/' + qidx|string }}">
+            <input type="hidden" name="participant_id" value="{{ participant_id }}">
+            <input type="hidden" name="question_id" value="{{ question_id }}">
+            <input type="hidden" name="start_ts" id="startTs" value="">
+
+            <div class="row image-grid">
+                {% for img_path, img_idx in images %}
+                <div class="col">
+                    <div class="card img-card position-relative" style="height: 100%;">
+                        <div class="check-icon">
+                            <i class="bi bi-check-lg"></i>
+                        </div>
+                        <!-- 图片区域 - 点击选择 -->
+                        <div class="thumbnail-container select-area" onclick="selectImage({{ loop.index0 }})">
+                            <img src="{{ img_path }}" 
+                                 class="thumbnail-img" 
+                                 alt="选项 {{ loop.index }}"
+                                 loading="lazy">
+                        </div>
+                        <!-- 放大按钮区域 - 点击放大 -->
+                        <div class="zoom-controls">
+                            <button type="button" class="zoom-btn" onclick="openLightbox('{{ img_path }}', '选项 {{ loop.index }}')">
+                                <i class="bi bi-zoom-in"></i>
+                            </button>
+                            <div class="zoom-hint" onclick="openLightbox('{{ img_path }}', '选项 {{ loop.index }}')">点击查看大图</div>
+                        </div>
+                        <!-- 选项标签 - 点击选择 -->
+                        <label class="p-3 text-center bg-light select-label" onclick="selectImage({{ loop.index0 }})">
+                            <input type="radio" name="selected_index" value="{{ img_idx }}" id="img_{{ loop.index0 }}" required>
+                            <span class="ms-2">选项 {{ loop.index }}</span>
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- 灯箱模态框 -->
+            <div id="lightbox" class="lightbox-modal" onclick="closeLightbox(event)">
+                <div class="lightbox-content" onclick="event.stopPropagation()">
+                    <button type="button" class="lightbox-close" onclick="closeLightbox()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                    <img id="lightboxImg" src="" alt="">
+                    <div id="lightboxCaption" class="lightbox-caption"></div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="card mt-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="/" class="btn btn-outline-secondary">首页</a>
+                        {% if qidx > 0 %}
+                        <a href="{{ '/study/' + study_code + '/question/' + (qidx - 1)|string + '?pid=' + participant_id if study_code else '/question/' + (qidx - 1)|string + '?pid=' + participant_id }}" class="btn btn-outline-primary ms-2">上一题</a>
+                        {% endif %}
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                        提交并继续
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 页面数据
+    const currentQidx = {{ qidx }};
+    const totalQuestions = {{ total_questions }};
+    const participantId = "{{ participant_id }}";
+    const studyCode = "{{ study_code if study_code else 'default' }}";
+    const STORAGE_KEY = 'study_progress_' + studyCode + '_' + participantId;
+    
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('startTs').value = Date.now();
+        generateQuestionDots();
+        updateProgress();
+        loadSavedAnswer();
+        initOverviewState(); // 初始化概览折叠状态（放在最后，确保DOM已准备好）
+    });
+    
+    // 生成题号圆点
+    function generateQuestionDots() {
+        const container = document.getElementById('questionOverview');
+        if (!container) return;
+        
+        let html = '';
+        for (let i = 0; i < totalQuestions; i++) {
+            let className = 'question-dot';
+            if (i === currentQidx) className += ' current';
+            
+            // 检查是否已答
+            const saved = getSavedAnswers();
+            if (saved[i] && saved[i].answered) {
+                className += ' answered';
+            }
+            
+            // 判断是否在可见范围内（当前题前后3题）
+            const isVisible = Math.abs(i - currentQidx) <= 3;
+            if (isVisible) className += ' visible';
+            
+            html += `<div class="${className}" data-idx="${i}" onclick="jumpToQuestion(${i})">${i + 1}</div>`;
+        }
+        container.innerHTML = html;
+    }
+    
+    // 更新可见题号（折叠状态下只显示部分）
+    function updateVisibleDots() {
+        const dots = document.querySelectorAll('.question-dot');
+        dots.forEach(dot => {
+            const idx = parseInt(dot.dataset.idx);
+            const isVisible = Math.abs(idx - currentQidx) <= 3;
+            if (isVisible) {
+                dot.classList.add('visible');
+            } else {
+                dot.classList.remove('visible');
+            }
+        });
+    }
+    
+    // 获取保存的答案
+    function getSavedAnswers() {
+        try {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                return JSON.parse(data).answers || {};
+            }
+        } catch (e) {}
+        return {};
+    }
+    
+    // 保存答案
+    function saveAnswer(selectedIndex) {
+        try {
+            let data = {answers: {}};
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) data = JSON.parse(saved);
+            
+            data.answers[currentQidx] = {
+                selected_index: selectedIndex,
+                answered: true,
+                time: Date.now()
+            };
+            data.participantId = participantId;
+            
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            console.error('Save failed:', e);
+        }
+    }
+    
+    // 选择图片
+    function selectImage(index) {
+        // 更新 radio
+        const radio = document.getElementById('img_' + index);
+        if (radio) radio.checked = true;
+        
+        // 更新 UI
+        document.querySelectorAll('.img-card').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('.img-card')[index].classList.add('selected');
+        
+        // 启用提交按钮
+        document.getElementById('submitBtn').disabled = false;
+        
+        // 保存
+        saveAnswer(index);
+        
+        // 更新概览和进度
+        generateQuestionDots();
+        updateProgress();
+    }
+    
+    // 更新进度
+    function updateProgress() {
+        const saved = getSavedAnswers();
+        const answeredCount = Object.keys(saved).filter(k => saved[k].answered).length;
+        const percent = Math.round((answeredCount / totalQuestions) * 100);
+        
+        const progressText = document.getElementById('progressText');
+        const progressBar = document.getElementById('progressBar');
+        
+        if (progressText) progressText.textContent = percent + '%';
+        if (progressBar) {
+            progressBar.style.width = percent + '%';
+            progressBar.setAttribute('aria-valuenow', percent);
+        }
+    }
+    
+    // 加载已保存的答案
+    function loadSavedAnswer() {
+        const saved = getSavedAnswers()[currentQidx];
+        if (saved && saved.selected_index !== undefined) {
+            const radio = document.getElementById('img_' + saved.selected_index);
+            if (radio) {
+                radio.checked = true;
+                radio.closest('.img-card').classList.add('selected');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        }
+    }
+    
+    // 跳转到指定题目
+    function jumpToQuestion(targetIdx) {
+        if (targetIdx === currentQidx) return;
+        const basePath = studyCode && studyCode !== 'default' ? `/study/${studyCode}` : '';
+        window.location.href = `${basePath}/question/${targetIdx}?pid=${participantId}`;
+    }
+    
+    // 答题概览折叠展开
+    let overviewExpanded = false;
+    function toggleOverview() {
+        const content = document.getElementById('overviewContent');
+        const toggle = document.getElementById('overviewToggle');
+        
+        overviewExpanded = !overviewExpanded;
+        
+        if (overviewExpanded) {
+            content.classList.remove('collapsed');
+            toggle.classList.remove('collapsed');
+        } else {
+            content.classList.add('collapsed');
+            toggle.classList.add('collapsed');
+            // 更新可见题号
+            updateVisibleDots();
+        }
+        
+        // 保存用户偏好到sessionStorage
+        sessionStorage.setItem('overviewExpanded', overviewExpanded);
+    }
+    
+    // 页面加载时恢复概览状态
+    function initOverviewState() {
+        const saved = sessionStorage.getItem('overviewExpanded');
+        const content = document.getElementById('overviewContent');
+        
+        if (saved === 'true') {
+            // 展开状态
+            overviewExpanded = true;
+            content.classList.remove('collapsed');
+            document.getElementById('overviewToggle').classList.remove('collapsed');
+        } else {
+            // 折叠状态，更新可见题号
+            overviewExpanded = false;
+            content.classList.add('collapsed');
+            document.getElementById('overviewToggle').classList.add('collapsed');
+            updateVisibleDots();
+        }
+    }
+    
+    // 灯箱功能
+    function openLightbox(src, caption) {
+        const lightbox = document.getElementById('lightbox');
+        const img = document.getElementById('lightboxImg');
+        const captionEl = document.getElementById('lightboxCaption');
+        
+        img.src = src;
+        captionEl.textContent = caption;
+        lightbox.classList.add('active');
+        document.body.style.overflow = 'hidden'; // 防止背景滚动
+    }
+    
+    function closeLightbox(event) {
+        // 如果提供了event且点击的是内容区域，不关闭
+        if (event && event.target.closest('.lightbox-content')) {
+            return;
+        }
+        
+        const lightbox = document.getElementById('lightbox');
+        lightbox.classList.remove('active');
+        document.body.style.overflow = ''; // 恢复滚动
+    }
+    
+    // ESC键关闭灯箱
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLightbox();
+        }
+    });
+</script>
+{% endblock %}

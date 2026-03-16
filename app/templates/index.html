@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title if title else 'User Study Platform' }}{% endblock %}
+{% block nav_title %}{{ title if title else 'User Study' }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        {% if study %}
+        <!-- 有问卷代码时显示问卷详情 -->
+        <div class="card mb-4">
+            <div class="card-body p-5">
+                <h3 class="card-title mb-4">
+                    <i class="bi bi-journal-check text-primary me-2"></i>
+                    {{ title }}
+                </h3>
+                <div class="instructions-text" style="white-space: pre-wrap; line-height: 1.8;">
+                    {{ instructions }}
+                </div>
+            </div>
+        </div>
+
+        <!-- 示例展示 -->
+        {% if examples %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-4">
+                    <i class="bi bi-images text-primary me-2"></i>
+                    示例
+                </h5>
+                {% for example in examples %}
+                <div class="mb-4">
+                    <p class="mb-3 fw-medium">{{ example.text }}</p>
+                    <div class="row g-3">
+                        {% for img in example.images %}
+                        <div class="col-md-6">
+                            <img src="{{ img }}" class="img-fluid rounded" alt="示例图" style="max-height: 200px; object-fit: cover; width: 100%;">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if not loop.last %}
+                <hr class="my-4">
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 开始/继续按钮 -->
+        <div class="card">
+            <div class="card-body text-center py-5" id="startButtons">
+                <form action="/study/{{ study_code }}/start" method="post" id="newStudyForm">
+                    <button type="submit" class="btn btn-primary btn-lg" id="startBtn">
+                        <i class="bi bi-play-circle me-2"></i>
+                        开始实验
+                    </button>
+                </form>
+                <div id="continueSection" style="display: none;">
+                    <p class="text-muted mb-3">
+                        <i class="bi bi-clock-history me-1"></i>
+                        检测到未完成的实验进度
+                    </p>
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                        <a id="continueBtn" href="#" class="btn btn-success btn-lg">
+                            <i class="bi bi-arrow-right-circle me-2"></i>
+                            继续实验
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary" onclick="startNewStudy()">
+                            <i class="bi bi-plus-circle me-2"></i>
+                            重新开始
+                        </button>
+                    </div>
+                    <p class="text-muted mt-3 mb-0 small" id="progressInfo"></p>
+                </div>
+                <p class="text-muted mt-3 mb-0" id="estimatedTime">
+                    <small>预计耗时约 10 分钟</small>
+                </p>
+            </div>
+        </div>
+        
+        {% else %}
+        <!-- 无问卷代码时显示输入框 -->
+        <div class="card">
+            <div class="card-body p-5 text-center">
+                <h3 class="card-title mb-4">
+                    <i class="bi bi-keyboard text-primary me-2"></i>
+                    请输入问卷代码
+                </h3>
+                <p class="text-muted mb-4">
+                    请从研究者处获取问卷代码，输入后进入问卷
+                </p>
+                
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="input-group input-group-lg mb-3">
+                            <input type="text" 
+                                   class="form-control text-center" 
+                                   id="studyCodeInput" 
+                                   placeholder="例如：abc123"
+                                   maxlength="20"
+                                   autocomplete="off"
+                                   onkeyup="handleKeyUp(event)">
+                            <button class="btn btn-primary" type="button" onclick="enterStudy()">
+                                <i class="bi bi-arrow-right-circle"></i>
+                                进入
+                            </button>
+                        </div>
+                        <div id="errorMsg" class="text-danger small" style="display: none;"></div>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    如果您是研究者，请<a href="/admin">登录管理后台</a>
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    {% if study %}
+    // 有问卷代码时，检测是否有未完成的进度
+    document.addEventListener('DOMContentLoaded', function() {
+        checkSavedProgress();
+    });
+    {% endif %}
+
+    function handleKeyUp(event) {
+        if (event.key === 'Enter') {
+            enterStudy();
+        }
+    }
+
+    function enterStudy() {
+        const codeInput = document.getElementById('studyCodeInput');
+        const errorMsg = document.getElementById('errorMsg');
+        const code = codeInput.value.trim().toLowerCase();
+        
+        if (!code) {
+            errorMsg.textContent = '请输入问卷代码';
+            errorMsg.style.display = 'block';
+            codeInput.focus();
+            return;
+        }
+        
+        // 验证代码格式（3-20位，只允许小写字母、数字、连字符）
+        const codePattern = /^[a-z0-9-]{3,20}$/;
+        if (!codePattern.test(code)) {
+            errorMsg.textContent = '问卷代码格式不正确（3-20位，只允许字母、数字、连字符）';
+            errorMsg.style.display = 'block';
+            codeInput.focus();
+            return;
+        }
+        
+        // 跳转到问卷页面
+        window.location.href = '/study/' + code;
+    }
+
+    function checkSavedProgress() {
+        const studyCode = '{{ study_code }}';
+        if (!studyCode) return;
+        
+        // 查找当前问卷的进度
+        const storageKey = 'study_progress_' + studyCode;
+        const savedData = localStorage.getItem(storageKey);
+        
+        if (!savedData) {
+            return; // 没有保存的进度
+        }
+
+        try {
+            const data = JSON.parse(savedData);
+            if (!data || !data.answers) return;
+            
+            // 找到最后答题的时间和已答题目数
+            let lastAnswerTime = 0;
+            let answeredCount = 0;
+            const totalQuestions = {{ total_questions if total_questions else 80 }};
+
+            Object.values(data.answers).forEach(answer => {
+                if (answer.answered && answer.time > lastAnswerTime) {
+                    lastAnswerTime = answer.time;
+                }
+                if (answer.answered) {
+                    answeredCount++;
+                }
+            });
+
+            // 获取当前题目索引
+            let currentQuestion = 0;
+            for (let i = 0; i < totalQuestions; i++) {
+                if (!data.answers[i] || !data.answers[i].answered) {
+                    currentQuestion = i;
+                    break;
+                }
+                currentQuestion = i + 1;
+            }
+
+            // 只显示未完成的实验
+            if (answeredCount < totalQuestions) {
+                const progress = {
+                    participantId: data.participantId,
+                    answeredCount: answeredCount,
+                    totalQuestions: totalQuestions,
+                    currentQuestion: Math.min(currentQuestion, totalQuestions - 1),
+                    lastAnswerTime: lastAnswerTime
+                };
+                showContinueOption(progress, storageKey);
+            }
+        } catch (e) {
+            console.error('解析进度失败:', e);
+        }
+    }
+
+    function showContinueOption(progress, storageKey) {
+        // 隐藏开始按钮，显示继续选项
+        document.getElementById('newStudyForm').style.display = 'none';
+        document.getElementById('estimatedTime').style.display = 'none';
+        document.getElementById('continueSection').style.display = 'block';
+
+        // 设置继续按钮链接
+        const continueBtn = document.getElementById('continueBtn');
+        const studyCode = '{{ study_code }}';
+        continueBtn.href = `/study/${studyCode}/question/${progress.currentQuestion}?pid=${progress.participantId}`;
+
+        // 显示进度信息
+        const percent = Math.round((progress.answeredCount / progress.totalQuestions) * 100);
+        const lastTime = new Date(progress.lastAnswerTime).toLocaleString('zh-CN', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        document.getElementById('progressInfo').innerHTML = 
+            `已完成 ${progress.answeredCount}/${progress.totalQuestions} 题 (${percent}%) · 上次答题：${lastTime}`;
+    }
+
+    function startNewStudy() {
+        const studyCode = '{{ study_code }}';
+        if (studyCode) {
+            // 清除当前问卷的进度
+            const storageKey = 'study_progress_' + studyCode;
+            localStorage.removeItem(storageKey);
+        }
+
+        // 显示开始按钮
+        document.getElementById('continueSection').style.display = 'none';
+        document.getElementById('newStudyForm').style.display = 'block';
+        document.getElementById('estimatedTime').style.display = 'block';
+    }
+</script>
+{% endblock %}

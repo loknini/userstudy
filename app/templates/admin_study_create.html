@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}创建问卷 - 管理后台{% endblock %}
+{% block nav_title %}管理后台{% endblock %}
+
+{% block nav_extra %}
+<div class="navbar-nav ms-auto">
+    <a href="/admin/studies?pw={{ pw }}" class="btn btn-light btn-sm me-2">返回列表</a>
+    <a href="/" class="btn btn-light btn-sm">返回首页</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">
+                <i class="bi bi-plus-circle me-2"></i>
+                创建新问卷
+            </h4>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-light">
+                <strong>问卷信息</strong>
+            </div>
+            <div class="card-body">
+                <form action="/admin/studies/create" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="pw" value="{{ pw }}">
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">
+                            问卷名称 <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="name" name="name" required
+                               placeholder="例如：用户满意度调查">
+                        <div class="form-text">问卷的显示名称，用于区分不同的问卷</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="code" class="form-label">
+                            短代码
+                        </label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="code" name="code"
+                                   placeholder="留空则自动生成"
+                                   maxlength="20" pattern="[a-z0-9_]+"
+                                   oninput="this.value = this.value.toLowerCase().replace(/[^a-z0-9_]/g, '')">
+                            <button type="button" class="btn btn-outline-secondary" onclick="generateCode()">
+                                <i class="bi bi-shuffle"></i> 随机生成
+                            </button>
+                        </div>
+                        <div class="form-text">用于访问问卷的短链接，如 "user2024"，只包含小写字母、数字和下划线</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">
+                            描述
+                        </label>
+                        <textarea class="form-control" id="description" name="description" rows="2"
+                                  placeholder="问卷的简要描述（可选）"></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="configfile" class="form-label">
+                            配置文件 <span class="text-danger">*</span>
+                        </label>
+                        <input type="file" class="form-control" id="configfile" name="configfile" required
+                               accept=".json">
+                        <div class="form-text">上传 JSON 格式的问卷配置文件</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/admin/studies?pw={{ pw }}" class="btn btn-outline-secondary">取消</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>
+                            创建问卷
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header bg-light">
+                <strong>配置文件示例</strong>
+            </div>
+            <div class="card-body">
+                <pre class="mb-0"><code class="language-json">{
+  "title": "用户满意度调查",
+  "welcome": "欢迎参加我们的调查！",
+  "completion_message": "感谢您的参与！",
+  "completion_redirect": null,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating",
+      "text": "您对我们的服务满意吗？",
+      "required": true,
+      "config": {
+        "min": 1,
+        "max": 5,
+        "labels": ["非常不满意", "不满意", "一般", "满意", "非常满意"]
+      }
+    }
+  ],
+  "upload_dir": "uploads"
+}</code></pre>
+                <div class="mt-3">
+                    <a href="/static/examples/sample_config.json" download class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-download"></i> 下载示例配置
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function generateCode() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('code').value = code;
+}
+
+// 文件上传验证
+document.getElementById('configfile').addEventListener('change', function() {
+    const file = this.files[0];
+    if (file && !file.name.endsWith('.json')) {
+        alert('请选择 JSON 格式的文件');
+        this.value = '';
+        return;
+    }
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                JSON.parse(e.target.result);
+            } catch (err) {
+                alert('文件格式错误：不是有效的 JSON 格式');
+                document.getElementById('configfile').value = '';
+            }
+        };
+        reader.readAsText(file);
+    }
+});
+</script>
+{% endblock %}

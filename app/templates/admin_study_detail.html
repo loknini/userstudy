@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}{{ study.name }} - 管理后台{% endblock %}
+{% block nav_title %}管理后台{% endblock %}
+
+{% block nav_extra %}
+<div class="navbar-nav ms-auto">
+    <a href="/admin/studies?pw={{ pw }}" class="btn btn-light btn-sm me-2">返回列表</a>
+    <a href="/" class="btn btn-light btn-sm">返回首页</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="mb-0">{{ study.name }}</h4>
+                <small class="text-muted">
+                    短代码: <code>{{ study.code }}</code>
+                    {% if study.status == 'active' %}
+                    <span class="badge bg-success ms-2">进行中</span>
+                    {% elif study.status == 'paused' %}
+                    <span class="badge bg-warning ms-2">暂停</span>
+                    {% else %}
+                    <span class="badge bg-secondary ms-2">已归档</span>
+                    {% endif %}
+                </small>
+            </div>
+            <div class="btn-group">
+                <a href="/study/{{ study.code }}" target="_blank" class="btn btn-outline-primary">
+                    <i class="bi bi-eye"></i> 查看问卷
+                </a>
+                <button type="button" class="btn btn-outline-secondary" onclick="copyLink()">
+                    <i class="bi bi-link-45deg"></i> 复制链接
+                </button>
+            </div>
+        </div>
+        
+        {% if study.description %}
+        <div class="alert alert-info">
+            <strong>描述：</strong>{{ study.description }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- 统计信息 -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <strong>统计数据</strong>
+            </div>
+            <div class="card-body">
+                {% if stats %}
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 text-center">
+                            <div class="text-muted small">总参与人数</div>
+                            <div class="fs-3 fw-bold text-primary">{{ stats.total_participants or 0 }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 text-center">
+                            <div class="text-muted small">已完成</div>
+                            <div class="fs-3 fw-bold text-success">{{ stats.completed_count or 0 }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 text-center">
+                            <div class="text-muted small">进行中</div>
+                            <div class="fs-3 fw-bold text-warning">{{ stats.in_progress_count or 0 }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-bar-chart fs-2 mb-2"></i>
+                    <p class="mb-0">暂无统计数据</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 快捷操作 -->
+        <div class="card">
+            <div class="card-header bg-light">
+                <strong>快捷操作</strong>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <a href="/admin/analysis?pw={{ pw }}&study_code={{ study.code }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-bar-chart-line me-2"></i>
+                            数据分析
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="/admin/export?pw={{ pw }}&study_code={{ study.code }}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-download me-2"></i>
+                            导出数据
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- 问卷信息 -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <strong>问卷信息</strong>
+            </div>
+            <div class="card-body">
+                <dl class="mb-0">
+                    <dt>创建时间</dt>
+                    <dd>{{ study.created_at.strftime('%Y-%m-%d %H:%M') if study.created_at else '-' }}</dd>
+                    
+                    <dt>更新时间</dt>
+                    <dd>{{ study.updated_at.strftime('%Y-%m-%d %H:%M') if study.updated_at else '-' }}</dd>
+                    
+                    <dt>状态</dt>
+                    <dd>
+                        {% if study.status == 'active' %}
+                        <span class="badge bg-success">进行中</span>
+                        {% elif study.status == 'paused' %}
+                        <span class="badge bg-warning">暂停</span>
+                        {% else %}
+                        <span class="badge bg-secondary">已归档</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt>问卷链接</dt>
+                    <dd>
+                        <small>
+                            <a href="/study/{{ study.code }}" target="_blank">/study/{{ study.code }}</a>
+                        </small>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+        
+        <!-- 状态管理 -->
+        <div class="card">
+            <div class="card-header bg-light">
+                <strong>状态管理</strong>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    更改问卷状态以控制是否接受新的参与者。
+                </p>
+                <div class="d-grid gap-2">
+                    {% if study.status == 'active' %}
+                    <button type="button" class="btn btn-warning" onclick="updateStatus('paused')">
+                        <i class="bi bi-pause-circle me-1"></i> 暂停问卷
+                    </button>
+                    {% else %}
+                    <button type="button" class="btn btn-success" onclick="updateStatus('active')">
+                        <i class="bi bi-play-circle me-1"></i> 恢复问卷
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyLink() {
+    const link = `${window.location.origin}/study/{{ study.code }}`;
+    navigator.clipboard.writeText(link).then(() => {
+        alert('链接已复制: ' + link);
+    }).catch(() => {
+        alert('复制失败，请手动复制: ' + link);
+    });
+}
+
+async function updateStatus(status) {
+    const pw = '{{ pw }}';
+    const action = status === 'active' ? '恢复' : '暂停';
+    
+    if (!confirm(`确定要${action}此问卷吗？`)) return;
+    
+    try {
+        const response = await fetch(`/admin/api/studies/{{ study.code }}/status?pw=${pw}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: status })
+        });
+        
+        if (!response.ok) throw new Error('更新失败');
+        
+        window.location.reload();
+    } catch (error) {
+        alert('更新失败: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}User Study{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    {% block extra_css %}{% endblock %}
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            /* 防止移动端双击缩放 */
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .navbar-brand {
+            font-weight: 600;
+        }
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .btn-lg {
+            padding: 12px 32px;
+        }
+        
+        /* 移动端基础适配 */
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+            .card {
+                border-radius: 8px;
+            }
+            .btn {
+                padding: 10px 16px;
+            }
+            h3 {
+                font-size: 1.3rem;
+            }
+        }
+        
+        /* 防止图片被拖动 */
+        img {
+            -webkit-user-drag: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-journal-check me-2"></i>
+                {% block nav_title %}User Study{% endblock %}
+            </a>
+            {% block nav_extra %}{% endblock %}
+        </div>
+    </nav>
+
+    <main class="container py-4 flex-grow-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="text-center py-4 text-muted">
+        <small>User Study Platform v2.0 &copy; 2024</small>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 全局图片懒加载和错误处理 -->
+    <script>
+        // 图片懒加载配置
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.style.opacity = '0';
+                        img.style.transition = 'opacity 0.3s ease';
+                        
+                        // 延迟一点加载，让过渡动画更自然
+                        setTimeout(() => {
+                            img.style.opacity = '1';
+                        }, 50);
+                        
+                        observer.unobserve(img);
+                    }
+                });
+            }, {
+                rootMargin: '50px 0px', // 提前50px开始加载
+                threshold: 0.01
+            });
+            
+            // 观察所有带 loading="lazy" 的图片
+            document.addEventListener('DOMContentLoaded', () => {
+                const lazyImages = document.querySelectorAll('img[loading="lazy"]');
+                lazyImages.forEach(img => imageObserver.observe(img));
+            });
+        }
+        
+        // 全局图片错误处理
+        document.addEventListener('error', function(e) {
+            if (e.target.tagName === 'IMG') {
+                console.warn('图片加载失败:', e.target.src);
+                e.target.style.opacity = '0.5';
+                e.target.style.backgroundColor = '#e0e0e0';
+                
+                // 图片错误已处理，添加标记避免重复处理
+                if (!e.target.dataset.errorHandled) {
+                    e.target.dataset.errorHandled = 'true';
+                }
+            }
+        }, true);
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
