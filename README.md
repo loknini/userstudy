@@ -3,8 +3,6 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/docker-supported-blue.svg)](https://www.docker.com/)
-[![CI/CD](https://github.com/your-username/userstudy/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/userstudy/actions)
-[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 一个用于收集用户对情感图像生成模型主观评价的研究平台。支持多模型对比（SDXL、Textual Inversion、EmoGen、Ours），双维度评估（情感准确性、内容一致性），以及多问卷管理。
 
@@ -17,7 +15,6 @@
 - 🚀 **高性能**: FastAPI异步框架，支持50+并发用户
 - 🔒 **数据隔离**: 问卷间数据完全隔离，保证研究独立性
 - 🐳 **容器化部署**: 支持 Docker/Docker Compose，一键部署
-- 🔄 **CI/CD**: 自动化测试、构建和部署流程
 
 ## 🚀 快速开始
 
@@ -158,7 +155,6 @@ python scripts/analyze_results.py
 - [README_FASTAPI.md](README_FASTAPI.md) - 详细使用指南
 - [AGENTS.md](AGENTS.md) - 项目架构说明
 - [scripts/README.md](scripts/README.md) - 工具脚本使用说明
-- [.github/workflows/README.md](.github/workflows/README.md) - CI/CD 配置说明
 
 ## 🛠️ 常用命令
 
@@ -204,31 +200,7 @@ python -m pytest tests/ -v
 python scripts/migrate_to_multi_study.py
 ```
 
-## 🔄 CI/CD 自动化部署
 
-本项目已配置 GitHub Actions 实现自动化测试和部署：
-
-### 自动触发
-
-- **提交代码**: 自动运行测试和代码检查
-- **合并到 main**: 自动构建 Docker 镜像并部署
-
-### 配置部署
-
-```bash
-# 1. 在 GitHub 仓库设置中添加 Secrets
-# Settings → Secrets and variables → Actions
-
-# 需要配置:
-# - SERVER_HOST: 服务器 IP
-# - SERVER_USER: SSH 用户名
-# - SSH_PRIVATE_KEY: SSH 私钥
-
-# 2. 推送代码后自动部署
-git push origin main
-```
-
-详细配置请参考 [.github/workflows/README.md](.github/workflows/README.md)。
 
 ## 🤝 贡献
 
@@ -236,4 +208,4 @@ git push origin main
 
 ## 📄 许可证
 
-MIT License
+本项目采用无许可证（No License）方式发布。
