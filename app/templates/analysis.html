@@ -1,205 +1,436 @@
-{% extends "base.html" %}
-
-{% block title %}数据分析 - User Study{% endblock %}
-{% block nav_title %}数据分析{% endblock %}
-
-{% block nav_extra %}
+{% extends "base.html" %} {% block title %}数据分析 - User Study{% endblock %}
+{% block nav_title %}数据分析{% endblock %} {% block nav_extra %}
 <div class="navbar-nav ms-auto">
-    <a href="/admin/?pw={{ pw }}" class="btn btn-light btn-sm">返回管理后台</a>
+  <a href="/admin/?pw={{ pw }}" class="btn btn-light btn-sm">返回管理后台</a>
 </div>
-{% endblock %}
-
-{% block extra_css %}
+{% endblock %} {% block extra_css %}
 <style>
-    .chart-container {
-        position: relative;
-        height: 300px;
-    }
+  .chart-container {
+    position: relative;
+    height: 300px;
+  }
+  .stat-card {
+    text-align: center;
+    padding: 15px;
+  }
+  .stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+  }
+  .stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+  }
 </style>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
+<!-- 总体统计 -->
 <div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-bar-chart-line me-2"></i>总体统计</span>
-                <button class="btn btn-sm btn-outline-primary" onclick="refreshData()">
-                    <i class="bi bi-arrow-clockwise"></i> 刷新
-                </button>
+  <div class="col-12">
+    <div class="card">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <span><i class="bi bi-bar-chart-line me-2"></i>总体统计</span>
+        <button class="btn btn-sm btn-outline-primary" onclick="refreshData()">
+          <i class="bi bi-arrow-clockwise"></i> 刷新
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="row" id="overallStats">
+          <div class="col-md-3">
+            <div class="stat-card">
+              <div class="stat-value text-primary" id="totalParticipants">
+                -
+              </div>
+              <div class="stat-label">总参与者</div>
             </div>
-            <div class="card-body">
-                <div class="row text-center" id="overallStats">
-                    <div class="col-md-3">
-                        <h4 class="text-primary" id="totalParticipants">-</h4>
-                        <small class="text-muted">总参与者</small>
-                    </div>
-                    <div class="col-md-3">
-                        <h4 class="text-success" id="completedParticipants">-</h4>
-                        <small class="text-muted">已完成</small>
-                    </div>
-                    <div class="col-md-3">
-                        <h4 class="text-info" id="completionRate">-</h4>
-                        <small class="text-muted">完成率</small>
-                    </div>
-                    <div class="col-md-3">
-                        <h4 class="text-warning" id="avgTime">-</h4>
-                        <small class="text-muted">平均用时</small>
-                    </div>
-                </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card">
+              <div class="stat-value text-success" id="completedParticipants">
+                -
+              </div>
+              <div class="stat-label">已完成</div>
             </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card">
+              <div class="stat-value text-info" id="completionRate">-</div>
+              <div class="stat-label">完成率</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card">
+              <div class="stat-value text-warning" id="avgTime">-</div>
+              <div class="stat-label">平均用时</div>
+            </div>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </div>
 
+<!-- 图表区域 -->
 <div class="row">
-    <!-- 总体投票 -->
-    <div class="col-lg-12 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-trophy me-2"></i>模型总得票数
-            </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="overallVotesChart"></canvas>
-                </div>
-            </div>
+  <!-- 总体投票 -->
+  <div class="col-lg-12 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-trophy me-2"></i>模型总得票数
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="overallVotesChart"></canvas>
         </div>
+      </div>
     </div>
+  </div>
 
-    <!-- 情感维度 -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-heart me-2"></i>情感维度得票数
-            </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="emotionVotesChart"></canvas>
-                </div>
-            </div>
+  <!-- 情感维度 -->
+  <div class="col-lg-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-heart me-2"></i>情感维度得票数
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="emotionVotesChart"></canvas>
         </div>
+      </div>
     </div>
+  </div>
 
-    <!-- 内容维度 -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-image me-2"></i>内容维度得票数
-            </div>
-            <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="contentVotesChart"></canvas>
-                </div>
-            </div>
+  <!-- 内容维度 -->
+  <div class="col-lg-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-image me-2"></i>内容维度得票数
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="contentVotesChart"></canvas>
         </div>
+      </div>
     </div>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
+<!-- 详细分析表格 -->
+<div class="row">
+  <div class="col-lg-12 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-award me-2"></i>模型偏好详细分析
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">数值格式：均值 ± 标准差（百分比）</p>
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+            <thead class="table-dark">
+              <tr>
+                <th>模型</th>
+                <th>情感唤起 ↑</th>
+                <th>内容保真 ↑</th>
+                <th>平衡性 ↑</th>
+              </tr>
+            </thead>
+            <tbody id="modelStatsTable">
+              <tr>
+                <td colspan="4" class="text-center">加载中...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 一致性分析 -->
+<div class="row">
+  <div class="col-lg-12 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-repeat me-2"></i>用户选择一致性分析
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-value text-primary" id="consistencyParticipants">
+                -
+              </div>
+              <div class="stat-label">有效参与者</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-value text-success" id="consistencyRate">-</div>
+              <div class="stat-label">平均一致性率</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-value text-info" id="totalConsistentChoices">
+                -
+              </div>
+              <div class="stat-label">总一致选择数</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-let charts = {};
+  let charts = {};
 
-function createBarChart(canvasId, data, label) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    
+  function createBarChart(canvasId, data, label) {
+    const ctx = document.getElementById(canvasId).getContext("2d");
+
     if (charts[canvasId]) {
-        charts[canvasId].destroy();
+      charts[canvasId].destroy();
     }
-    
+
     charts[canvasId] = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: data.labels,
-            datasets: [{
-                label: label,
-                data: data.data,
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.6)',
-                    'rgba(54, 162, 235, 0.6)',
-                    'rgba(255, 206, 86, 0.6)',
-                    'rgba(75, 192, 192, 0.6)',
-                    'rgba(153, 102, 255, 0.6)'
-                ],
-                borderColor: [
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(75, 192, 192, 1)',
-                    'rgba(153, 102, 255, 1)'
-                ],
-                borderWidth: 1
-            }]
+      type: "bar",
+      data: {
+        labels: data.labels,
+        datasets: [
+          {
+            label: label,
+            data: data.data,
+            backgroundColor: [
+              "rgba(255, 99, 132, 0.6)",
+              "rgba(54, 162, 235, 0.6)",
+              "rgba(255, 206, 86, 0.6)",
+              "rgba(75, 192, 192, 0.6)",
+            ],
+            borderColor: [
+              "rgba(255, 99, 132, 1)",
+              "rgba(54, 162, 235, 1)",
+              "rgba(255, 206, 86, 1)",
+              "rgba(75, 192, 192, 1)",
+            ],
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: "y",
+        plugins: {
+          legend: {
+            display: false,
+          },
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y',
-            plugins: {
-                legend: {
-                    display: false
-                }
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1,
             },
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
-        }
+          },
+        },
+      },
     });
-}
+  }
 
-async function loadChartData() {
+  async function loadChartData() {
     try {
-        const response = await fetch('/admin/chart-data?pw={{ pw }}');
-        const data = await response.json();
-        
-        if (data.overall_votes) {
-            createBarChart('overallVotesChart', data.overall_votes, '总得票数');
-        }
-        if (data.emotion_votes) {
-            createBarChart('emotionVotesChart', data.emotion_votes, '情感维度得票');
-        }
-        if (data.content_votes) {
-            createBarChart('contentVotesChart', data.content_votes, '内容维度得票');
-        }
-    } catch (error) {
-        console.error('加载图表数据失败:', error);
-    }
-}
+      const response = await fetch("/admin/chart-data?pw={{ pw }}");
+      const data = await response.json();
 
-async function loadOverallStats() {
+      if (data.overall_votes) {
+        createBarChart("overallVotesChart", data.overall_votes, "总得票数");
+      }
+      if (data.emotion_votes) {
+        createBarChart("emotionVotesChart", data.emotion_votes, "情感维度得票");
+      }
+      if (data.content_votes) {
+        createBarChart("contentVotesChart", data.content_votes, "内容维度得票");
+      }
+    } catch (error) {
+      console.error("加载图表数据失败:", error);
+    }
+  }
+
+  async function loadOverallStats() {
     try {
-        const response = await fetch('/admin/stats?pw={{ pw }}');
-        const stats = await response.json();
-        
-        document.getElementById('totalParticipants').textContent = stats.total_participants;
-        document.getElementById('completedParticipants').textContent = stats.completed_participants;
-        document.getElementById('completionRate').textContent = stats.completion_rate + '%';
-        document.getElementById('avgTime').textContent = 
-            stats.average_response_time ? Math.round(stats.average_response_time) + 's' : '-';
-    } catch (error) {
-        console.error('加载统计数据失败:', error);
-    }
-}
+      const response = await fetch("/admin/stats?pw={{ pw }}");
+      const stats = await response.json();
 
-function refreshData() {
+      document.getElementById("totalParticipants").textContent =
+        stats.total_participants || 0;
+      document.getElementById("completedParticipants").textContent =
+        stats.completed_participants || 0;
+      document.getElementById("completionRate").textContent =
+        (stats.completion_rate || 0).toFixed(1) + "%";
+
+      // 处理平均用时
+      let avgTimeText = "-";
+      if (stats.average_response_time) {
+        const avgTime = parseFloat(stats.average_response_time);
+        if (avgTime > 60) {
+          const minutes = Math.floor(avgTime / 60);
+          const seconds = Math.round(avgTime % 60);
+          avgTimeText = minutes + "分" + seconds + "秒";
+        } else {
+          avgTimeText = Math.round(avgTime) + "秒";
+        }
+      }
+      document.getElementById("avgTime").textContent = avgTimeText;
+
+      // 更新模型统计表格（异步调用）
+      updateModelStatsTable();
+    } catch (error) {
+      console.error("加载统计数据失败:", error);
+    }
+  }
+
+  async function updateModelStatsTable() {
+    const tbody = document.getElementById("modelStatsTable");
+    tbody.innerHTML =
+      '<tr><td colspan="4" class="text-center">加载中...</td></tr>';
+
+    try {
+      const response = await fetch("/admin/detailed-analysis?pw={{ pw }}");
+      const data = await response.json();
+
+      if (!data.model_preferences) {
+        tbody.innerHTML =
+          '<tr><td colspan="4" class="text-center">暂无数据</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = "";
+
+      // 获取情感、内容和总体数据
+      const emotionData = data.model_preferences.emotion || [];
+      const contentData = data.model_preferences.content || [];
+      const overallData = data.model_preferences.overall || [];
+
+      // 创建模型名称到数据的映射
+      const emotionMap = {};
+      emotionData.forEach((item) => {
+        emotionMap[item.model] = item;
+      });
+
+      const contentMap = {};
+      contentData.forEach((item) => {
+        contentMap[item.model] = item;
+      });
+
+      const overallMap = {};
+      overallData.forEach((item) => {
+        overallMap[item.model] = item;
+      });
+
+      // 获取所有模型并排序（按总得票数）
+      const allModels = Object.keys(overallMap).sort((a, b) => {
+        return (overallMap[b]?.picks || 0) - (overallMap[a]?.picks || 0);
+      });
+
+      if (allModels.length === 0) {
+        tbody.innerHTML =
+          '<tr><td colspan="4" class="text-center">暂无数据</td></tr>';
+        return;
+      }
+
+      allModels.forEach((modelName) => {
+        const emoItem = emotionMap[modelName];
+        const contentItem = contentMap[modelName];
+        const overallItem = overallMap[modelName];
+
+        // 计算百分比（假设每个用户回答相同数量的问题）
+        // 情感维度：均值 * 100，标准差 * 100
+        const emoMean =
+          emoItem && emoItem.stats ? (emoItem.stats.mean || 0) * 100 : 0;
+        const emoStd =
+          emoItem && emoItem.stats ? (emoItem.stats.std || 0) * 100 : 0;
+
+        // 内容维度
+        const contentMean =
+          contentItem && contentItem.stats
+            ? (contentItem.stats.mean || 0) * 100
+            : 0;
+        const contentStd =
+          contentItem && contentItem.stats
+            ? (contentItem.stats.std || 0) * 100
+            : 0;
+
+        // 平衡性（总体）
+        const balanceMean =
+          overallItem && overallItem.stats
+            ? (overallItem.stats.mean || 0) * 100
+            : 0;
+        const balanceStd =
+          overallItem && overallItem.stats
+            ? (overallItem.stats.std || 0) * 100
+            : 0;
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td><strong>${modelName}</strong></td>
+          <td>${emoMean.toFixed(2)} ± ${emoStd.toFixed(2)}%</td>
+          <td>${contentMean.toFixed(2)} ± ${contentStd.toFixed(2)}%</td>
+          <td>${balanceMean.toFixed(2)} ± ${balanceStd.toFixed(2)}%</td>
+        `;
+        tbody.appendChild(row);
+      });
+    } catch (error) {
+      console.error("加载模型统计数据失败:", error);
+      tbody.innerHTML =
+        '<tr><td colspan="4" class="text-center">加载失败</td></tr>';
+    }
+  }
+
+  async function loadConsistencyStats() {
+    try {
+      const response = await fetch("/admin/detailed-analysis?pw={{ pw }}");
+      const data = await response.json();
+
+      if (data.consistency) {
+        document.getElementById("consistencyParticipants").textContent =
+          data.consistency.total_participants || 0;
+        document.getElementById("consistencyRate").textContent =
+          ((data.consistency.average_consistency_rate || 0) * 100).toFixed(1) +
+          "%";
+
+        // 计算总一致选择数
+        let totalConsistent = 0;
+        if (data.consistency.details) {
+          totalConsistent = data.consistency.details.reduce(
+            (sum, d) => sum + (d.consistent_count || 0),
+            0,
+          );
+        }
+        document.getElementById("totalConsistentChoices").textContent =
+          totalConsistent;
+      }
+    } catch (error) {
+      console.error("加载一致性统计失败:", error);
+    }
+  }
+
+  function refreshData() {
     loadOverallStats();
     loadChartData();
-}
+    loadConsistencyStats();
+  }
 
-// 页面加载时初始化
-document.addEventListener('DOMContentLoaded', function() {
+  // 页面加载时初始化
+  document.addEventListener("DOMContentLoaded", function () {
     loadOverallStats();
     loadChartData();
-    
+    loadConsistencyStats();
+
     // 每 30 秒自动刷新
     setInterval(refreshData, 30000);
-});
+  });
 </script>
 {% endblock %}

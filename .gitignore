@@ -68,3 +68,9 @@ node_modules/
 *.tmp
 *.bak
 *.backup
+
+# 研究配置文件
+study_config.json
+
+# 数据库文件
+user_study.db

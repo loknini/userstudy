@@ -61,6 +61,7 @@ class Participant(Base):
     ip_address = Column(String(45), nullable=True)  # IPv6 最长 45 字符
     user_agent = Column(Text, nullable=True)
     completed_at = Column(DateTime, nullable=True)  # 完成时间
+    random_seed = Column(Integer, nullable=True)  # 随机种子，确保每个参与者的题目顺序一致
     
     # 关系
     study = relationship("Study", back_populates="participants")

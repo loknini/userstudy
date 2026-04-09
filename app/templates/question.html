@@ -455,6 +455,7 @@
         <form id="answerForm" method="post" action="{{ '/study/' + study_code + '/submit/' + qidx|string if study_code else '/submit/' + qidx|string }}">
             <input type="hidden" name="participant_id" value="{{ participant_id }}">
             <input type="hidden" name="question_id" value="{{ question_id }}">
+            <input type="hidden" name="time_spent" id="timeSpent" value="">
             <input type="hidden" name="start_ts" id="startTs" value="">
 
             <div class="row image-grid">
@@ -732,6 +733,14 @@
         if (e.key === 'Escape') {
             closeLightbox();
         }
+    });
+    
+    // 表单提交时计算用时
+    document.getElementById('answerForm').addEventListener('submit', function(e) {
+        const startTime = parseInt(document.getElementById('startTs').value);
+        const endTime = Date.now();
+        const timeSpent = (endTime - startTime) / 1000; // 转换为秒
+        document.getElementById('timeSpent').value = timeSpent.toFixed(2);
     });
 </script>
 {% endblock %}

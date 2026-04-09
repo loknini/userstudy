@@ -1,446 +1,475 @@
-{% extends "base.html" %}
-
-{% block title %}管理后台 - User Study{% endblock %}
-{% block nav_title %}管理后台{% endblock %}
-
-{% block nav_extra %}
+{% extends "base.html" %} {% block title %}管理后台 - User Study{% endblock %}
+{% block nav_title %}管理后台{% endblock %} {% block nav_extra %}
 <div class="navbar-nav ms-auto">
-    <a href="/" class="btn btn-light btn-sm">返回问卷</a>
+  <a href="/" class="btn btn-light btn-sm">返回问卷</a>
 </div>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <!-- 仪表盘概览 -->
 <div class="row mb-4">
-    <div class="col-12">
-        <h4 class="mb-3">
-            <i class="bi bi-speedometer2 me-2"></i>
-            仪表盘概览
-        </h4>
-    </div>
-    
-    <!-- 关键指标卡片 -->
-    <div class="col-md-3 mb-3">
-        <div class="card bg-primary text-white h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title mb-1">总参与人数</h6>
-                        <h3 class="mb-0" id="totalParticipants">-</h3>
-                    </div>
-                    <i class="bi bi-people-fill fs-2 opacity-50"></i>
-                </div>
-            </div>
+  <div class="col-12">
+    <h4 class="mb-3">
+      <i class="bi bi-speedometer2 me-2"></i>
+      仪表盘概览
+    </h4>
+  </div>
+
+  <!-- 关键指标卡片 -->
+  <div class="col-md-3 mb-3">
+    <div class="card bg-primary text-white h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-1">总参与人数</h6>
+            <h3 class="mb-0" id="totalParticipants">-</h3>
+          </div>
+          <i class="bi bi-people-fill fs-2 opacity-50"></i>
         </div>
+      </div>
     </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card bg-success text-white h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title mb-1">今日新增</h6>
-                        <h3 class="mb-0" id="todayParticipants">-</h3>
-                    </div>
-                    <i class="bi bi-person-plus-fill fs-2 opacity-50"></i>
-                </div>
-            </div>
+  </div>
+
+  <div class="col-md-3 mb-3">
+    <div class="card bg-success text-white h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-1">今日新增</h6>
+            <h3 class="mb-0" id="todayParticipants">-</h3>
+          </div>
+          <i class="bi bi-person-plus-fill fs-2 opacity-50"></i>
         </div>
+      </div>
     </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card bg-info text-white h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title mb-1">完成率</h6>
-                        <h3 class="mb-0" id="completionRate">-</h3>
-                    </div>
-                    <i class="bi bi-check-circle-fill fs-2 opacity-50"></i>
-                </div>
-            </div>
+  </div>
+
+  <div class="col-md-3 mb-3">
+    <div class="card bg-info text-white h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-1">完成率</h6>
+            <h3 class="mb-0" id="completionRate">-</h3>
+          </div>
+          <i class="bi bi-check-circle-fill fs-2 opacity-50"></i>
         </div>
+      </div>
     </div>
-    
-    <div class="col-md-3 mb-3">
-        <div class="card bg-warning text-dark h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title mb-1">平均用时</h6>
-                        <h3 class="mb-0" id="avgTime">-</h3>
-                    </div>
-                    <i class="bi bi-clock-fill fs-2 opacity-50"></i>
-                </div>
-            </div>
+  </div>
+
+  <div class="col-md-3 mb-3">
+    <div class="card bg-warning text-dark h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-1">平均用时</h6>
+            <h3 class="mb-0" id="avgTime">-</h3>
+          </div>
+          <i class="bi bi-clock-fill fs-2 opacity-50"></i>
         </div>
+      </div>
     </div>
+  </div>
 </div>
 
 <div class="row">
-    <!-- 左侧：操作面板 -->
-    <div class="col-lg-4">
-        <!-- 问卷管理 -->
-        <div class="card mb-4">
-            <div class="card-header bg-dark text-white">
-                <i class="bi bi-journal-check me-2"></i>
-                问卷管理
-            </div>
-            <div class="card-body">
-                <div id="studyList" class="mb-3" style="max-height: 200px; overflow-y: auto;">
-                    <p class="text-muted small">加载中...</p>
-                </div>
-                <div class="d-grid gap-2">
-                    <a href="/admin/studies/create?pw={{ pw }}" class="btn btn-dark btn-sm">
-                        <i class="bi bi-plus-circle me-1"></i>
-                        创建新问卷
-                    </a>
-                    <a href="/admin/studies?pw={{ pw }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-list me-1"></i>
-                        查看所有问卷
-                    </a>
-                </div>
-            </div>
+  <!-- 左侧：操作面板 -->
+  <div class="col-lg-3">
+    <!-- 问卷管理 -->
+    <div class="card mb-4">
+      <div class="card-header bg-dark text-white">
+        <i class="bi bi-journal-check me-2"></i>
+        问卷管理
+      </div>
+      <div class="card-body">
+        <div
+          id="studyList"
+          class="mb-3"
+          style="max-height: 200px; overflow-y: auto"
+        >
+          <p class="text-muted small">加载中...</p>
         </div>
-        
-        <!-- 上传配置 -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <i class="bi bi-upload me-2"></i>
-                上传配置
-            </div>
-            <div class="card-body">
-                <form method="post" action="/admin/upload-config" enctype="multipart/form-data">
-                    <input type="hidden" name="pw" value="{{ pw }}">
-                    <div class="mb-3">
-                        <input type="file" name="configfile" class="form-control" accept=".json" required>
-                        <div class="form-text">上传 study_config.json 文件</div>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-cloud-upload me-1"></i>
-                        上传并保存
-                    </button>
-                </form>
-            </div>
+        <div class="d-grid gap-2">
+          <a
+            href="/admin/studies/create?pw={{ pw }}"
+            class="btn btn-dark btn-sm"
+          >
+            <i class="bi bi-plus-circle me-1"></i>
+            创建新问卷
+          </a>
+          <a
+            href="/admin/studies?pw={{ pw }}"
+            class="btn btn-outline-secondary btn-sm"
+          >
+            <i class="bi bi-list me-1"></i>
+            查看所有问卷
+          </a>
         </div>
-
-        <!-- 数据导出 -->
-        <div class="card mb-4">
-            <div class="card-header bg-success text-white">
-                <i class="bi bi-download me-2"></i>
-                数据导出
-            </div>
-            <div class="card-body">
-                <p class="text-muted small">导出所有响应数据为 CSV 格式</p>
-                <button class="btn btn-success w-100" onclick="startExport()">
-                    <i class="bi bi-filetype-csv me-1"></i>
-                    开始导出
-                </button>
-                <div id="exportStatus" class="mt-2 small"></div>
-            </div>
-        </div>
-
-        <!-- 快速链接 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="bi bi-link-45deg me-2"></i>
-                快速链接
-            </div>
-            <div class="list-group list-group-flush">
-                <a href="/admin/analysis?pw={{ pw }}" class="list-group-item list-group-item-action">
-                    <i class="bi bi-bar-chart-line me-2"></i>
-                    数据分析图表
-                </a>
-                <a href="/admin/stats?pw={{ pw }}" class="list-group-item list-group-item-action" target="_blank">
-                    <i class="bi bi-file-code me-2"></i>
-                    原始统计数据 (JSON)
-                </a>
-                <a href="/docs" class="list-group-item list-group-item-action" target="_blank">
-                    <i class="bi bi-book me-2"></i>
-                    API 文档
-                </a>
-            </div>
-        </div>
-        
-        <!-- 策略管理 -->
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <i class="bi bi-gear me-2"></i>
-                清理策略管理
-            </div>
-            <div class="card-body">
-                <p class="text-muted small">管理系统自动清理策略</p>
-                <div class="d-grid gap-2">
-                    <button class="btn btn-info btn-sm" onclick="loadStrategyManager()">
-                        <i class="bi bi-sliders me-1"></i>
-                        管理策略
-                    </button>
-                </div>
-                <div class="mt-2 small text-muted">
-                    <i class="bi bi-clock me-1"></i>
-                    每天凌晨2:00自动执行
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
 
-    <!-- 右侧：配置预览 -->
-    <div class="col-lg-8">
-        <!-- 趋势图 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="bi bi-graph-up me-2"></i>
-                近7天参与趋势
-            </div>
-            <div class="card-body">
-                <canvas id="trendChart" height="120"></canvas>
-            </div>
-        </div>
-        
-        <!-- 最近参与者 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="bi bi-clock-history me-2"></i>
-                最近参与者
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>ID</th>
-                                <th>参与时间</th>
-                                <th>进度</th>
-                                <th>状态</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recentParticipants">
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-3">加载中...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 配置预览 -->
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-eye me-2"></i>
-                当前配置预览
-            </div>
-            <div class="card-body">
-                <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow: auto;"><code>{{ config_text }}</code></pre>
-            </div>
-        </div>
+    <!-- 上传配置 -->
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-upload me-2"></i>
+        上传配置
+      </div>
+      <div class="card-body">
+        <form
+          method="post"
+          action="/admin/upload-config"
+          enctype="multipart/form-data"
+        >
+          <input type="hidden" name="pw" value="{{ pw }}" />
+          <div class="mb-3">
+            <input
+              type="file"
+              name="configfile"
+              class="form-control"
+              accept=".json"
+              required
+            />
+            <div class="form-text">上传 study_config.json 文件</div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-cloud-upload me-1"></i>
+            上传并保存
+          </button>
+        </form>
+      </div>
     </div>
+
+    <!-- 数据导出 -->
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white">
+        <i class="bi bi-download me-2"></i>
+        数据导出
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">导出所有响应数据为 CSV 格式</p>
+        <button class="btn btn-success w-100" onclick="startExport()">
+          <i class="bi bi-filetype-csv me-1"></i>
+          开始导出
+        </button>
+        <div id="exportStatus" class="mt-2 small"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧：数据展示 -->
+  <div class="col-lg-5">
+    <!-- 趋势图 -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="bi bi-graph-up me-2"></i>
+        近7天参与趋势
+      </div>
+      <div class="card-body">
+        <canvas id="trendChart" height="120"></canvas>
+      </div>
+    </div>
+
+    <!-- 最近参与者 -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="bi bi-clock-history me-2"></i>
+        最近参与者
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>ID</th>
+                <th>参与时间</th>
+                <th>进度</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody id="recentParticipants">
+              <tr>
+                <td colspan="4" class="text-center text-muted py-3">
+                  加载中...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧：快捷操作 -->
+  <div class="col-lg-4">
+    <!-- 快速链接 -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="bi bi-link-45deg me-2"></i>
+        快速链接
+      </div>
+      <div class="list-group list-group-flush">
+        <a
+          href="/admin/analysis?pw={{ pw }}"
+          class="list-group-item list-group-item-action"
+        >
+          <i class="bi bi-bar-chart-line me-2"></i>
+          数据分析图表
+        </a>
+        <a
+          href="/admin/stats?pw={{ pw }}"
+          class="list-group-item list-group-item-action"
+          target="_blank"
+        >
+          <i class="bi bi-file-code me-2"></i>
+          原始统计数据 (JSON)
+        </a>
+        <a
+          href="/docs"
+          class="list-group-item list-group-item-action"
+          target="_blank"
+        >
+          <i class="bi bi-book me-2"></i>
+          API 文档
+        </a>
+      </div>
+    </div>
+
+    <!-- 策略管理 -->
+    <div class="card mb-4">
+      <div class="card-header bg-info text-white">
+        <i class="bi bi-gear me-2"></i>
+        清理策略管理
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">管理系统自动清理策略</p>
+        <div class="d-grid gap-2">
+          <button class="btn btn-info btn-sm" onclick="loadStrategyManager()">
+            <i class="bi bi-sliders me-1"></i>
+            管理策略
+          </button>
+        </div>
+        <div class="mt-2 small text-muted">
+          <i class="bi bi-clock me-1"></i>
+          每天凌晨2:00自动执行
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
+{% endblock %} {% block extra_js %}
 <!-- 引入 Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-// 页面加载时获取仪表盘数据
-document.addEventListener('DOMContentLoaded', function() {
+  // 页面加载时获取仪表盘数据
+  document.addEventListener("DOMContentLoaded", function () {
     loadDashboardData();
-});
+  });
 
-let trendChart = null;
+  let trendChart = null;
 
-async function loadDashboardData() {
+  async function loadDashboardData() {
     try {
-        const pw = '{{ pw }}';
-        if (!pw) {
-            console.error('密码参数未传递');
-            document.getElementById('totalParticipants').textContent = '未登录';
-            return;
-        }
-        
-        const response = await fetch(`/admin/dashboard?pw=${pw}`);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-        
-        const result = await response.json();
-        
-        // 更新关键指标
-        document.getElementById('totalParticipants').textContent = result.summary.total_participants || 0;
-        document.getElementById('todayParticipants').textContent = result.summary.today_participants || 0;
-        document.getElementById('completionRate').textContent = (result.summary.completion_rate || 0) + '%';
-        document.getElementById('avgTime').textContent = (result.summary.average_time || 0) + 's';
-        
-        // 绘制趋势图
-        renderTrendChart(result.daily_trend || []);
-        
-        // 更新最近参与者列表
-        renderRecentParticipants(result.recent_participants || []);
-        
-    } catch (error) {
-        console.error('加载仪表盘数据失败:', error);
-        document.getElementById('totalParticipants').textContent = '加载失败';
-        document.getElementById('totalParticipants').title = error.message;
-    }
-}
-
-function renderTrendChart(dailyData) {
-    const ctx = document.getElementById('trendChart').getContext('2d');
-    
-    if (trendChart) {
-        trendChart.destroy();
-    }
-    
-    trendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: dailyData.map(d => d.date),
-            datasets: [{
-                label: '参与人数',
-                data: dailyData.map(d => d.count),
-                borderColor: 'rgb(13, 110, 253)',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                tension: 0.3,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
-        }
-    });
-}
-
-function renderRecentParticipants(participants) {
-    const tbody = document.getElementById('recentParticipants');
-    
-    // 过滤掉进度为0的参与者（只打开页面未答题的）
-    const activeParticipants = participants.filter(p => p.progress > 0);
-    
-    if (activeParticipants.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">暂无活跃参与者</td></tr>';
+      const pw = "{{ pw or '' }}";
+      if (!pw) {
+        console.error("密码参数未传递");
+        document.getElementById("totalParticipants").textContent = "未登录";
         return;
+      }
+
+      const response = await fetch(`/admin/dashboard?pw=${pw}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      // 更新关键指标
+      document.getElementById("totalParticipants").textContent =
+        result.summary.total_participants || 0;
+      document.getElementById("todayParticipants").textContent =
+        result.summary.today_participants || 0;
+      document.getElementById("completionRate").textContent =
+        (result.summary.completion_rate || 0) + "%";
+      document.getElementById("avgTime").textContent =
+        (result.summary.average_time || 0) + "s";
+
+      // 绘制趋势图
+      renderTrendChart(result.daily_trend || []);
+
+      // 更新最近参与者列表
+      renderRecentParticipants(result.recent_participants || []);
+    } catch (error) {
+      console.error("加载仪表盘数据失败:", error);
+      document.getElementById("totalParticipants").textContent = "加载失败";
+      document.getElementById("totalParticipants").title = error.message;
     }
-    
-    tbody.innerHTML = activeParticipants.map(p => `
+  }
+
+  function renderTrendChart(dailyData) {
+    const ctx = document.getElementById("trendChart").getContext("2d");
+
+    if (trendChart) {
+      trendChart.destroy();
+    }
+
+    trendChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: dailyData.map((d) => d.date),
+        datasets: [
+          {
+            label: "参与人数",
+            data: dailyData.map((d) => d.count),
+            borderColor: "rgb(13, 110, 253)",
+            backgroundColor: "rgba(13, 110, 253, 0.1)",
+            tension: 0.3,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false,
+          },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1,
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function renderRecentParticipants(participants) {
+    const tbody = document.getElementById("recentParticipants");
+
+    // 过滤掉进度为0的参与者（只打开页面未答题的）
+    const activeParticipants = participants.filter((p) => p.progress > 0);
+
+    if (activeParticipants.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="4" class="text-center text-muted py-3">暂无活跃参与者</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = activeParticipants
+      .map(
+        (p) => `
         <tr>
             <td><code>${p.id}</code></td>
             <td>${p.created_at}</td>
             <td>${p.progress}/80</td>
             <td>
-                <span class="badge ${p.completed ? 'bg-success' : 'bg-warning'}">
-                    ${p.completed ? '已完成' : '进行中'}
+                <span class="badge ${p.completed ? "bg-success" : "bg-warning"}">
+                    ${p.completed ? "已完成" : "进行中"}
                 </span>
             </td>
         </tr>
-    `).join('');
-}
+    `,
+      )
+      .join("");
+  }
 
-async function startExport() {
-    const statusDiv = document.getElementById('exportStatus');
-    statusDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-1"></div> 正在创建导出任务...';
-    
+  async function startExport() {
+    const statusDiv = document.getElementById("exportStatus");
+    statusDiv.innerHTML =
+      '<div class="spinner-border spinner-border-sm me-1"></div> 正在创建导出任务...';
+
     try {
-        const response = await fetch('/api/export?api_key={{ pw }}', {
-            method: 'POST'
-        });
-        const result = await response.json();
-        
-        if (result.success && result.data) {
-            const taskId = result.data.task_id;
-            statusDiv.innerHTML = `<span class="text-info">任务已创建: ${taskId}</span>`;
-            checkExportStatus(taskId);
-        } else {
-            statusDiv.innerHTML = `<span class="text-danger">创建失败: ${result.message}</span>`;
-        }
-    } catch (error) {
-        statusDiv.innerHTML = `<span class="text-danger">错误: ${error.message}</span>`;
-    }
-}
+      const response = await fetch("/api/export?api_key={{ pw or '' }}", {
+        method: "POST",
+      });
+      const result = await response.json();
 
-async function checkExportStatus(taskId) {
-    const statusDiv = document.getElementById('exportStatus');
+      if (result.success && result.data) {
+        const taskId = result.data.task_id;
+        statusDiv.innerHTML = `<span class="text-info">任务已创建: ${taskId}</span>`;
+        checkExportStatus(taskId);
+      } else {
+        statusDiv.innerHTML = `<span class="text-danger">创建失败: ${result.message}</span>`;
+      }
+    } catch (error) {
+      statusDiv.innerHTML = `<span class="text-danger">错误: ${error.message}</span>`;
+    }
+  }
+
+  async function checkExportStatus(taskId) {
+    const statusDiv = document.getElementById("exportStatus");
     const maxAttempts = 30;
     let attempts = 0;
-    
+
     const check = async () => {
-        attempts++;
-        try {
-            const response = await fetch(`/api/export/${taskId}?api_key={{ pw }}`);
-            const result = await response.json();
-            
-            if (result.success && result.data) {
-                const task = result.data;
-                
-                if (task.status === 'completed') {
-                    statusDiv.innerHTML = `
+      attempts++;
+      try {
+        const response = await fetch(`/api/export/${taskId}?api_key={{ pw or '' }}`);
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          const task = result.data;
+
+          if (task.status === "completed") {
+            statusDiv.innerHTML = `
                         <span class="text-success">
                             <i class="bi bi-check-circle me-1"></i>
                             导出完成！
                         </span>
-                        <a href="/admin/export/${taskId}/download?pw={{ pw }}" class="btn btn-sm btn-success ms-2">
+                        <a href="/admin/export/${taskId}/download?pw={{ pw or '' }}" class="btn btn-sm btn-success ms-2">
                             下载 CSV
                         </a>
                     `;
-                    return;
-                } else if (task.status === 'failed') {
-                    statusDiv.innerHTML = `<span class="text-danger">导出失败: ${task.message}</span>`;
-                    return;
-                }
-            }
-            
-            if (attempts < maxAttempts) {
-                statusDiv.innerHTML = `<span class="text-info">正在处理中... (${attempts}/${maxAttempts})</span>`;
-                setTimeout(check, 2000);
-            } else {
-                statusDiv.innerHTML = '<span class="text-warning">检查超时，请稍后手动刷新</span>';
-            }
-        } catch (error) {
-            statusDiv.innerHTML = `<span class="text-danger">检查状态失败: ${error.message}</span>`;
+            return;
+          } else if (task.status === "failed") {
+            statusDiv.innerHTML = `<span class="text-danger">导出失败: ${task.message}</span>`;
+            return;
+          }
         }
+
+        if (attempts < maxAttempts) {
+          statusDiv.innerHTML = `<span class="text-info">正在处理中... (${attempts}/${maxAttempts})</span>`;
+          setTimeout(check, 2000);
+        } else {
+          statusDiv.innerHTML =
+            '<span class="text-warning">检查超时，请稍后手动刷新</span>';
+        }
+      } catch (error) {
+        statusDiv.innerHTML = `<span class="text-danger">检查状态失败: ${error.message}</span>`;
+      }
     };
-    
+
     check();
-}
+  }
 
-// ========== 策略管理相关函数 ==========
+  // ========== 策略管理相关函数 ==========
 
-let availableStrategies = [];
-let customStrategies = [];
+  let availableStrategies = [];
+  let customStrategies = [];
 
-async function loadStrategyManager() {
-    const pw = '{{ pw }}';
-    
+  async function loadStrategyManager() {
+    const pw = "{{ pw or '' }}";
+
     try {
-        const response = await fetch(`/admin/cleanup/strategies?pw=${pw}`);
-        if (!response.ok) throw new Error('加载策略失败');
-        
-        const result = await response.json();
-        availableStrategies = result.built_in || [];
-        customStrategies = result.custom || [];
-        
-        showStrategyModal();
-    } catch (error) {
-        alert('加载策略失败: ' + error.message);
-    }
-}
+      const response = await fetch(`/admin/cleanup/strategies?pw=${pw}`);
+      if (!response.ok) throw new Error("加载策略失败");
 
-function showStrategyModal() {
+      const result = await response.json();
+      availableStrategies = result.built_in || [];
+      customStrategies = result.custom || [];
+
+      showStrategyModal();
+    } catch (error) {
+      alert("加载策略失败: " + error.message);
+    }
+  }
+
+  function showStrategyModal() {
     const modalHtml = `
         <div class="modal fade" id="strategyModal" tabindex="-1">
             <div class="modal-dialog modal-lg">
@@ -455,7 +484,9 @@ function showStrategyModal() {
                         <div class="mb-4">
                             <h6 class="fw-bold mb-3">内置策略</h6>
                             <div class="list-group">
-                                ${availableStrategies.map(s => `
+                                ${availableStrategies
+                                  .map(
+                                    (s) => `
                                     <div class="list-group-item">
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div>
@@ -467,7 +498,9 @@ function showStrategyModal() {
                                             </button>
                                         </div>
                                     </div>
-                                `).join('')}
+                                `,
+                                  )
+                                  .join("")}
                             </div>
                         </div>
                         
@@ -479,11 +512,14 @@ function showStrategyModal() {
                                 </button>
                             </div>
                             
-                            ${customStrategies.length === 0 ? 
-                                '<p class="text-muted">暂无自定义策略</p>' :
-                                `<div class="list-group">
-                                    ${customStrategies.map(s => `
-                                        <div class="list-group-item ${s.enabled ? '' : 'bg-light'}">
+                            ${
+                              customStrategies.length === 0
+                                ? '<p class="text-muted">暂无自定义策略</p>'
+                                : `<div class="list-group">
+                                    ${customStrategies
+                                      .map(
+                                        (s) => `
+                                        <div class="list-group-item ${s.enabled ? "" : "bg-light"}">
                                             <div class="d-flex justify-content-between align-items-start">
                                                 <div>
                                                     <h6 class="mb-1">
@@ -497,7 +533,7 @@ function showStrategyModal() {
                                                         <i class="bi bi-play"></i>
                                                     </button>
                                                     <button class="btn btn-outline-secondary" onclick="toggleStrategy('${s.id}', ${!s.enabled})">
-                                                        <i class="bi bi-${s.enabled ? 'pause' : 'play'}"></i>
+                                                        <i class="bi bi-${s.enabled ? "pause" : "play"}"></i>
                                                     </button>
                                                     <button class="btn btn-outline-danger" onclick="deleteStrategy('${s.id}')">
                                                         <i class="bi bi-trash"></i>
@@ -505,7 +541,9 @@ function showStrategyModal() {
                                                 </div>
                                             </div>
                                         </div>
-                                    `).join('')}
+                                    `,
+                                      )
+                                      .join("")}
                                 </div>`
                             }
                         </div>
@@ -514,36 +552,41 @@ function showStrategyModal() {
             </div>
         </div>
     `;
-    
-    const existingModal = document.getElementById('strategyModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
-    const modal = new bootstrap.Modal(document.getElementById('strategyModal'));
-    modal.show();
-}
 
-function showExecuteStrategyModal(strategyType) {
-    const strategy = availableStrategies.find(s => s.type === strategyType);
+    const existingModal = document.getElementById("strategyModal");
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+    const modal = new bootstrap.Modal(document.getElementById("strategyModal"));
+    modal.show();
+  }
+
+  function showExecuteStrategyModal(strategyType) {
+    const strategy = availableStrategies.find((s) => s.type === strategyType);
     if (!strategy) return;
-    
-    let paramsForm = '';
+
+    let paramsForm = "";
     if (strategy.param_schema) {
-        for (const [key, config] of Object.entries(strategy.param_schema)) {
-            const inputType = config.type === 'boolean' ? 'checkbox' : config.type === 'number' ? 'number' : 'text';
-            paramsForm += `
+      for (const [key, config] of Object.entries(strategy.param_schema)) {
+        const inputType =
+          config.type === "boolean"
+            ? "checkbox"
+            : config.type === "number"
+              ? "number"
+              : "text";
+        paramsForm += `
                 <div class="mb-3">
                     <label class="form-label">${config.label}</label>
-                    <input type="${inputType}" class="form-control" id="param_${key}" value="${config.default || ''}" ${config.min !== undefined ? `min="${config.min}"` : ''} ${config.max !== undefined ? `max="${config.max}"` : ''}>
+                    <input type="${inputType}" class="form-control" id="param_${key}" value="${config.default || ""}" ${config.min !== undefined ? `min="${config.min}"` : ""} ${config.max !== undefined ? `max="${config.max}"` : ""}>
                     <div class="form-text">${config.description}</div>
                 </div>
             `;
-        }
+      }
     }
-    
+
     const modalHtml = `
         <div class="modal fade" id="executeStrategyModal" tabindex="-1">
             <div class="modal-dialog">
@@ -566,80 +609,90 @@ function showExecuteStrategyModal(strategyType) {
             </div>
         </div>
     `;
-    
-    const existingModal = document.getElementById('executeStrategyModal');
+
+    const existingModal = document.getElementById("executeStrategyModal");
     if (existingModal) {
-        existingModal.remove();
+      existingModal.remove();
     }
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
-    const modal = new bootstrap.Modal(document.getElementById('executeStrategyModal'));
+
+    document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+    const modal = new bootstrap.Modal(
+      document.getElementById("executeStrategyModal"),
+    );
     modal.show();
-}
+  }
 
-async function previewStrategy(strategyType) {
-    const pw = '{{ pw }}';
-    const resultDiv = document.getElementById('executeResult');
+  async function previewStrategy(strategyType) {
+    const pw = "{{ pw or '' }}";
+    const resultDiv = document.getElementById("executeResult");
     const params = collectStrategyParams();
-    
+
     resultDiv.innerHTML = '<div class="alert alert-info">预览中...</div>';
-    
-    try {
-        const response = await fetch('/admin/cleanup/strategies/' + strategyType + '/preview', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `pw=${pw}&params=${encodeURIComponent(JSON.stringify(params))}`
-        });
-        
-        const result = await response.json();
-        resultDiv.innerHTML = `<div class="alert alert-warning"><strong>预览结果:</strong><br>将清理 ${result.would_delete} 条记录<br><small>${result.description}</small></div>`;
-    } catch (error) {
-        resultDiv.innerHTML = `<div class="alert alert-danger">预览失败: ${error.message}</div>`;
-    }
-}
 
-async function executeStrategy(strategyType) {
-    const pw = '{{ pw }}';
-    const resultDiv = document.getElementById('executeResult');
-    
-    if (!confirm('确定要执行此清理策略吗？此操作不可恢复！')) return;
-    
+    try {
+      const response = await fetch(
+        `/admin/cleanup/strategies/${strategyType}/preview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `pw=${pw}&params=${encodeURIComponent(JSON.stringify(params))}`,
+        },
+      );
+
+      const result = await response.json();
+      resultDiv.innerHTML = `<div class="alert alert-warning"><strong>预览结果:</strong><br>将清理 ${result.would_delete} 条记录<br><small>${result.description}</small></div>`;
+    } catch (error) {
+      resultDiv.innerHTML = `<div class="alert alert-danger">预览失败: ${error.message}</div>`;
+    }
+  }
+
+  async function executeStrategy(strategyType) {
+    const pw = "{{ pw or '' }}";
+    const resultDiv = document.getElementById("executeResult");
+
+    if (!confirm("确定要执行此清理策略吗？此操作不可恢复！")) return;
+
     const params = collectStrategyParams();
-    
+
     resultDiv.innerHTML = '<div class="alert alert-info">执行中...</div>';
-    
+
     try {
-        const response = await fetch('/admin/cleanup/strategies/' + strategyType + '/execute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `pw=${pw}&params=${encodeURIComponent(JSON.stringify(params))}`
-        });
-        
-        const result = await response.json();
-        resultDiv.innerHTML = `<div class="alert alert-success"><strong>执行完成!</strong><br>已清理 ${result.deleted_count} 条记录</div>`;
-        setTimeout(loadDashboardData, 1000);
+      const response = await fetch(
+        "/admin/cleanup/strategies/" + strategyType + "/execute",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `pw=${pw}&params=${encodeURIComponent(JSON.stringify(params))}`,
+        },
+      );
+
+      const result = await response.json();
+      resultDiv.innerHTML = `<div class="alert alert-success"><strong>执行完成!</strong><br>已清理 ${result.deleted_count} 条记录</div>`;
+      setTimeout(loadDashboardData, 1000);
     } catch (error) {
-        resultDiv.innerHTML = `<div class="alert alert-danger">执行失败: ${error.message}</div>`;
+      resultDiv.innerHTML = `<div class="alert alert-danger">执行失败: ${error.message}</div>`;
     }
-}
+  }
 
-function collectStrategyParams() {
+  function collectStrategyParams() {
     const params = {};
-    document.querySelectorAll('#executeStrategyModal input').forEach(input => {
-        const key = input.id.replace('param_', '');
-        if (input.type === 'checkbox') {
-            params[key] = input.checked;
-        } else if (input.type === 'number') {
-            params[key] = parseFloat(input.value);
+    document
+      .querySelectorAll("#executeStrategyModal input")
+      .forEach((input) => {
+        const key = input.id.replace("param_", "");
+        if (input.type === "checkbox") {
+          params[key] = input.checked;
+        } else if (input.type === "number") {
+          params[key] = parseFloat(input.value);
         } else {
-            params[key] = input.value;
+          params[key] = input.value;
         }
-    });
+      });
     return params;
-}
+  }
 
-function showCreateStrategyModal() {
+  function showCreateStrategyModal() {
     const modalHtml = `
         <div class="modal fade" id="createStrategyModal" tabindex="-1">
             <div class="modal-dialog">
@@ -660,7 +713,7 @@ function showCreateStrategyModal() {
                         <div class="mb-3">
                             <label class="form-label">基于策略类型</label>
                             <select class="form-select" id="newStrategyType">
-                                ${availableStrategies.map(s => `<option value="${s.type}">${s.name}</option>`).join('')}
+                                ${availableStrategies.map((s) => `<option value="${s.type}">${s.name}</option>`).join("")}
                             </select>
                         </div>
                     </div>
@@ -672,128 +725,142 @@ function showCreateStrategyModal() {
             </div>
         </div>
     `;
-    
-    const existingModal = document.getElementById('createStrategyModal');
+
+    const existingModal = document.getElementById("createStrategyModal");
     if (existingModal) {
-        existingModal.remove();
+      existingModal.remove();
     }
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
-    const modal = new bootstrap.Modal(document.getElementById('createStrategyModal'));
+
+    document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+    const modal = new bootstrap.Modal(
+      document.getElementById("createStrategyModal"),
+    );
     modal.show();
-}
+  }
 
-async function createStrategy() {
-    const pw = '{{ pw }}';
-    const name = document.getElementById('newStrategyName').value;
-    const desc = document.getElementById('newStrategyDesc').value;
-    const type = document.getElementById('newStrategyType').value;
-    
+  async function createStrategy() {
+    const pw = "{{ pw or '' }}";
+    const name = document.getElementById("newStrategyName").value;
+    const desc = document.getElementById("newStrategyDesc").value;
+    const type = document.getElementById("newStrategyType").value;
+
     if (!name || !desc) {
-        alert('请填写名称和描述');
+      alert("请填写名称和描述");
+      return;
+    }
+
+    try {
+      const response = await fetch("/admin/cleanup/strategies/custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `pw=${pw}&name=${encodeURIComponent(name)}&description=${encodeURIComponent(desc)}&strategy_type=${type}&params=${encodeURIComponent(JSON.stringify({}))}`,
+      });
+
+      if (!response.ok) throw new Error("创建失败");
+
+      bootstrap.Modal.getInstance(
+        document.getElementById("createStrategyModal"),
+      ).hide();
+      loadStrategyManager();
+    } catch (error) {
+      alert("创建失败: " + error.message);
+    }
+  }
+
+  async function executeCustomStrategy(strategyId) {
+    const pw = "{{ pw or '' }}";
+
+    if (!confirm("确定要执行此策略吗？")) return;
+
+    try {
+      const response = await fetch(
+        "/admin/cleanup/strategies/" + strategyId + "/execute",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `pw=${pw}`,
+        },
+      );
+
+      const result = await response.json();
+      alert(`执行完成! 已清理 ${result.deleted_count} 条记录`);
+      loadDashboardData();
+    } catch (error) {
+      alert("执行失败: " + error.message);
+    }
+  }
+
+  async function toggleStrategy(strategyId, enabled) {
+    const pw = "{{ pw or '' }}";
+
+    try {
+      const response = await fetch(
+        "/admin/cleanup/strategies/custom/" + strategyId,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `pw=${pw}&enabled=${enabled}`,
+        },
+      );
+
+      if (!response.ok) throw new Error("更新失败");
+
+      loadStrategyManager();
+    } catch (error) {
+      alert("更新失败: " + error.message);
+    }
+  }
+
+  async function deleteStrategy(strategyId) {
+    const pw = "{{ pw or '' }}";
+
+    if (!confirm("确定要删除此策略吗？")) return;
+
+    try {
+      const response = await fetch(
+        "/admin/cleanup/strategies/custom/" + strategyId,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `pw=${pw}`,
+        },
+      );
+
+      if (!response.ok) throw new Error("删除失败");
+
+      loadStrategyManager();
+    } catch (error) {
+      alert("删除失败: " + error.message);
+    }
+  }
+
+  // ========== 问卷列表加载 ==========
+
+  async function loadStudyList() {
+    const pw = "{{ pw or '' }}";
+    const listDiv = document.getElementById("studyList");
+
+    try {
+      const response = await fetch(`/admin/api/studies?pw=${pw}`);
+      if (!response.ok) throw new Error("加载失败");
+
+      const result = await response.json();
+      const studies = result.studies || [];
+
+      if (studies.length === 0) {
+        listDiv.innerHTML = '<p class="text-muted small">暂无问卷</p>';
         return;
-    }
-    
-    try {
-        const response = await fetch('/admin/cleanup/strategies/custom', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `pw=${pw}&name=${encodeURIComponent(name)}&description=${encodeURIComponent(desc)}&strategy_type=${type}&params=${encodeURIComponent(JSON.stringify({}))}`
-        });
-        
-        if (!response.ok) throw new Error('创建失败');
-        
-        bootstrap.Modal.getInstance(document.getElementById('createStrategyModal')).hide();
-        loadStrategyManager();
-    } catch (error) {
-        alert('创建失败: ' + error.message);
-    }
-}
+      }
 
-async function executeCustomStrategy(strategyId) {
-    const pw = '{{ pw }}';
-    
-    if (!confirm('确定要执行此策略吗？')) return;
-    
-    try {
-        const response = await fetch('/admin/cleanup/strategies/' + strategyId + '/execute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `pw=${pw}`
-        });
-        
-        const result = await response.json();
-        alert(`执行完成! 已清理 ${result.deleted_count} 条记录`);
-        loadDashboardData();
-    } catch (error) {
-        alert('执行失败: ' + error.message);
-    }
-}
+      let html = '<div class="list-group list-group-flush">';
+      studies.forEach((study) => {
+        const statusBadge =
+          study.status === "active"
+            ? '<span class="badge bg-success">进行中</span>'
+            : '<span class="badge bg-secondary">暂停</span>';
 
-async function toggleStrategy(strategyId, enabled) {
-    const pw = '{{ pw }}';
-    
-    try {
-        const response = await fetch('/admin/cleanup/strategies/custom/' + strategyId, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `pw=${pw}&enabled=${enabled}`
-        });
-        
-        if (!response.ok) throw new Error('更新失败');
-        
-        loadStrategyManager();
-    } catch (error) {
-        alert('更新失败: ' + error.message);
-    }
-}
-
-async function deleteStrategy(strategyId) {
-    const pw = '{{ pw }}';
-    
-    if (!confirm('确定要删除此策略吗？')) return;
-    
-    try {
-        const response = await fetch('/admin/cleanup/strategies/custom/' + strategyId, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `pw=${pw}`
-        });
-        
-        if (!response.ok) throw new Error('删除失败');
-        
-        loadStrategyManager();
-    } catch (error) {
-        alert('删除失败: ' + error.message);
-    }
-}
-
-// ========== 问卷列表加载 ==========
-
-async function loadStudyList() {
-    const pw = '{{ pw }}';
-    const listDiv = document.getElementById('studyList');
-    
-    try {
-        const response = await fetch(`/admin/api/studies?pw=${pw}`);
-        if (!response.ok) throw new Error('加载失败');
-        
-        const result = await response.json();
-        const studies = result.studies || [];
-        
-        if (studies.length === 0) {
-            listDiv.innerHTML = '<p class="text-muted small">暂无问卷</p>';
-            return;
-        }
-        
-        let html = '<div class="list-group list-group-flush">';
-        studies.forEach(study => {
-            const statusBadge = study.status === 'active' 
-                ? '<span class="badge bg-success">进行中</span>'
-                : '<span class="badge bg-secondary">暂停</span>';
-            
-            html += `
+        html += `
                 <div class="list-group-item py-2 px-0">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -804,18 +871,18 @@ async function loadStudyList() {
                     </div>
                 </div>
             `;
-        });
-        html += '</div>';
-        
-        listDiv.innerHTML = html;
-    } catch (error) {
-        listDiv.innerHTML = `<p class="text-danger small">加载失败: ${error.message}</p>`;
-    }
-}
+      });
+      html += "</div>";
 
-// 页面加载时加载问卷列表
-document.addEventListener('DOMContentLoaded', function() {
+      listDiv.innerHTML = html;
+    } catch (error) {
+      listDiv.innerHTML = `<p class="text-danger small">加载失败: ${error.message}</p>`;
+    }
+  }
+
+  // 页面加载时加载问卷列表
+  document.addEventListener("DOMContentLoaded", function () {
     loadStudyList();
-});
+  });
 </script>
 {% endblock %}

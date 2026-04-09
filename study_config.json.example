@@ -1,0 +1,61 @@
+{
+  "title": "User Study: 可控的情感图像内容生成",
+  "instructions": "\n    我们的任务是\"可控的情感图像内容生成\"，旨在根据文本描述，生成不仅内容准确，而且能唤起指定情感体验的图像。\n\n    在接下来的问卷中，每个问题会给出一个文本描述和目标情感，并展示由不同模型生成的多张图像。\n\n    请您思考并回答以下两个核心问题：\n\n    1. 问题一：哪张图最能让您感受到指定的情感？\n\n    2. 问题二：哪张图最符合内容描述？\n\n    本次实验预计耗时约10分钟，感谢您的认真参与！\n    ",
+  "randomize": true,
+  "examples": [
+    {
+      "text": "理想特点1：情感表达准确",
+      "images": [
+        "/static/examples/example_good_emotion.png"
+      ]
+    },
+    {
+      "text": "理想特点2：内容语义一致",
+      "images": [
+        "/static/examples/example_good_content.png"
+      ]
+    },
+    {
+      "text": "理想特点3：语义清晰明确",
+      "images": [
+        "/static/examples/example_clear_prompt.png"
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1-1",
+      "prompt": "\n<strong>内容:</strong> 'A house in a garden' (花园里的房子)<br>\n<strong>情感:</strong> 'amusement' (愉悦)\n<hr style=\"margin: 1rem 0;\">\n请从以下图片中选择<strong>最能唤起'amusement' （愉悦）</strong>的一张。\n                ",
+      "images": [
+        "/uploads/amusement/A house in a garden/sdxl-A house in a garden.-amusement_sdxl.jpg",
+        "/uploads/amusement/A house in a garden/emo-A house in a garden.-amusement_ti.jpg",
+        "/uploads/amusement/A house in a garden/emo-A house in a garden.-amusement_emogen.jpg",
+        "/uploads/amusement/A house in a garden/55-A house in a garden.-amusement_ours.jpg"
+      ],
+      "models": [
+        "sdxl",
+        "ti",
+        "emogen",
+        "ours"
+      ],
+      "type": "choose_one"
+    },
+    {
+      "id": "q1-2",
+      "prompt": "\n<strong>内容:</strong> 'A house in a garden'  (花园里的房子)<br>\n<strong>情感:</strong> 'amusement' (愉悦)\n<hr style=\"margin: 1rem 0;\">\n请从以下图片中选择<strong>最符合内容描述</strong>（如果相差无几，请选择最能唤起'amusement' （愉悦））的一张。\n                ",
+      "images": [
+        "/uploads/amusement/A house in a garden/sdxl-A house in a garden.-amusement_sdxl.jpg",
+        "/uploads/amusement/A house in a garden/emo-A house in a garden.-amusement_ti.jpg",
+        "/uploads/amusement/A house in a garden/emo-A house in a garden.-amusement_emogen.jpg",
+        "/uploads/amusement/A house in a garden/55-A house in a garden.-amusement_ours.jpg"
+      ],
+      "models": [
+        "sdxl",
+        "ti",
+        "emogen",
+        "ours"
+      ],
+      "type": "choose_one"
+    }
+  ]
+}
