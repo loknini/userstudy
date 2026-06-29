@@ -271,11 +271,11 @@
         border-color: #198754;
     }
     
-    /* PC端：一行4个图片 */
+    /* PC端：自适应图片数量 */
     @media (min-width: 992px) {
         .image-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 16px;
         }
         .image-grid > .col {
@@ -284,11 +284,11 @@
         }
     }
     
-    /* 平板端：一行2个 */
+    /* 平板端：自适应图片数量 */
     @media (min-width: 769px) and (max-width: 991px) {
         .image-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 16px;
         }
         .image-grid > .col {
@@ -297,7 +297,7 @@
         }
     }
     
-    /* 移动端：一行2个 */
+    /* 移动端：自适应图片数量 */
     @media (max-width: 768px) {
         /* 调整主容器边距，给图片区域留白 */
         .container {
@@ -306,7 +306,7 @@
         }
         .image-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 10px;
             margin-left: -5px;
             margin-right: -5px;
@@ -455,6 +455,7 @@
         <form id="answerForm" method="post" action="{{ '/study/' + study_code + '/submit/' + qidx|string if study_code else '/submit/' + qidx|string }}">
             <input type="hidden" name="participant_id" value="{{ participant_id }}">
             <input type="hidden" name="question_id" value="{{ question_id }}">
+            <input type="hidden" name="time_spent" id="timeSpent" value="">
             <input type="hidden" name="start_ts" id="startTs" value="">
 
             <div class="row image-grid">
@@ -732,6 +733,14 @@
         if (e.key === 'Escape') {
             closeLightbox();
         }
+    });
+    
+    // 表单提交时计算用时
+    document.getElementById('answerForm').addEventListener('submit', function(e) {
+        const startTime = parseInt(document.getElementById('startTs').value);
+        const endTime = Date.now();
+        const timeSpent = (endTime - startTime) / 1000; // 转换为秒
+        document.getElementById('timeSpent').value = timeSpent.toFixed(2);
     });
 </script>
 {% endblock %}

@@ -68,3 +68,18 @@ node_modules/
 *.tmp
 *.bak
 *.backup
+
+# 研究配置文件（含真实题目和图片路径，不上传）
+study_config.json
+
+# 数据库文件（含用户数据，不上传）
+user_study.db
+
+# 开发调试临时文件
+compare_versions.py
+check_path.py
+report.html
+
+# IDE / AI 工具工作目录（不上传到开源仓库）
+.workbuddy/
+

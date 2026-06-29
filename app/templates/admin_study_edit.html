@@ -1,0 +1,611 @@
+{% extends "base.html" %}
+
+{% block title %}编辑配置 - {{ study.name }}{% endblock %}
+{% block nav_href %}/admin/{% endblock %}
+{% block nav_title %}管理后台{% endblock %}
+
+{% block nav_extra %}
+<div class="navbar-nav ms-auto">
+    <a href="/admin/study/{{ study.code }}" class="btn btn-light btn-sm me-2">返回详情</a>
+    <a href="/admin/studies" class="btn btn-light btn-sm me-2">问卷列表</a>
+    <a href="/" class="btn btn-light btn-sm">返回首页</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="app" class="container-fluid px-0">
+    <!-- 加载中 -->
+    <div id="loadingBox" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-3 text-muted">正在加载配置...</p>
+    </div>
+
+    <!-- 主内容 -->
+    <div id="editorContent" style="display:none">
+        <!-- 顶部栏 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="mb-0">{{ study.name }} <small class="text-muted fs-6">— 配置编辑</small></h4>
+                <small class="text-muted">短代码: <code>{{ study.code }}</code></small>
+            </div>
+            <div>
+                <span id="saveStatus" class="text-muted me-2" style="display:none"></span>
+                <button class="btn btn-primary" onclick="saveConfig()" id="saveBtn">
+                    <i class="bi bi-check-lg"></i> 保存配置
+                </button>
+            </div>
+        </div>
+
+        <!-- 警告：有回答记录 -->
+        <div id="responseWarning" class="alert alert-warning" style="display:none">
+            <strong><i class="bi bi-exclamation-triangle-fill me-1"></i>该问卷已有回答记录。</strong>
+            题目列表已锁定不可编辑（为防止历史数据失效）。您仍可以修改标题、说明和示例图。
+        </div>
+
+        <!-- Section 1: 基本信息 -->
+        <div class="card mb-3">
+            <div class="card-header d-flex align-items-center" role="button" onclick="toggleSection('sectionBasic')">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>基本信息</strong>
+                <i id="sectionBasicIcon" class="bi bi-chevron-down ms-auto"></i>
+            </div>
+            <div id="sectionBasic" class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">问卷名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" placeholder="问卷名称">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">页面标题</label>
+                        <input type="text" class="form-control" id="title" placeholder="显示在介绍页顶部的标题">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">描述</label>
+                        <input type="text" class="form-control" id="description" placeholder="简短描述">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">状态</label>
+                        <div class="form-control bg-light" id="statusDisplay">-</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">参与人数</label>
+                        <div class="form-control bg-light" id="participantCount">-</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">回答数</label>
+                        <div class="form-control bg-light" id="responseCount">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: 介绍说明 -->
+        <div class="card mb-3">
+            <div class="card-header d-flex align-items-center" role="button" onclick="toggleSection('sectionInstructions')">
+                <i class="bi bi-file-text me-2"></i>
+                <strong>介绍说明</strong>
+                <i id="sectionInstructionsIcon" class="bi bi-chevron-down ms-auto"></i>
+            </div>
+            <div id="sectionInstructions" class="card-body">
+                <label class="form-label">实验介绍文字 <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="instructions" rows="8" placeholder="向参试者展示的实验说明"></textarea>
+                <div class="form-text">直接按 <kbd>Enter</kbd> 即可换行，提交后将显示在问卷介绍页。</div>
+            </div>
+        </div>
+
+        <!-- Section 3: 示例图 -->
+        <div class="card mb-3">
+            <div class="card-header d-flex align-items-center" role="button" onclick="toggleSection('sectionExamples')">
+                <i class="bi bi-images me-2"></i>
+                <strong>示例图</strong>
+                <span class="badge bg-secondary ms-2" id="exampleCount">0</span>
+                <i id="sectionExamplesIcon" class="bi bi-chevron-down ms-auto"></i>
+            </div>
+            <div id="sectionExamples" class="card-body">
+                <div id="exampleList"></div>
+                <button class="btn btn-outline-primary btn-sm mt-2" onclick="addExample()">
+                    <i class="bi bi-plus-lg"></i> 添加示例
+                </button>
+            </div>
+        </div>
+
+        <!-- Section 4: 问题列表 -->
+        <div class="card mb-3">
+            <div class="card-header d-flex align-items-center" role="button" onclick="toggleSection('sectionQuestions')">
+                <i class="bi bi-list-check me-2"></i>
+                <strong>问题列表</strong>
+                <span class="badge bg-secondary ms-2" id="questionCount">0</span>
+                <span id="questionLockBadge" class="badge bg-danger ms-1" style="display:none">已锁定</span>
+                <i id="sectionQuestionsIcon" class="bi bi-chevron-down ms-auto"></i>
+            </div>
+            <div id="sectionQuestions" class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="questionsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:32px">#</th>
+                                <th style="width:72px">题目 ID</th>
+                                <th style="min-width:300px">Prompt / 提示词</th>
+                                <th style="width:72px">题型</th>
+                                <th style="width:48px">图</th>
+                                <th style="width:100px">模型</th>
+                            </tr>
+                        </thead>
+                        <tbody id="questionsTbody">
+                            <tr><td colspan="6" class="text-center text-muted">暂无数据</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="questionsLockedHint" class="p-3 text-muted small" style="display:none">
+                    <i class="bi bi-lock-fill me-1"></i>该问卷已有 <strong id="lockedResponseCount">0</strong> 条回答，题目列表已锁定不可修改。
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const STUDY_CODE = '{{ study.code }}';
+let appState = {
+    study: null,
+    config: null,
+    hasResponses: false,
+    examples: [],
+    questions: [],
+    dirty: false
+};
+
+// ============ 页面初始化 ============
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const resp = await fetch(`/admin/api/studies/${STUDY_CODE}/config`);
+        if (!resp.ok) throw new Error('加载失败: ' + resp.status);
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.detail || '加载失败');
+
+        appState.study = data.study;
+        appState.config = data.config;
+        appState.hasResponses = data.has_responses;
+        appState.examples = data.config.examples || [];
+        // 保存原始 prompt（含 HTML 标签），同时生成纯文本版用于显示
+        appState.questions = (data.config.questions || []).map(q => ({
+            ...q,
+            rawPrompt: q.prompt || '',        // 原始 HTML，保存时用
+            prompt: stripHtml(q.prompt || ''), // 纯文本，编辑时显示
+        }));
+
+        renderAll();
+        document.getElementById('loadingBox').style.display = 'none';
+        document.getElementById('editorContent').style.display = 'block';
+    } catch (e) {
+        document.getElementById('loadingBox').innerHTML =
+            '<div class="alert alert-danger">加载配置失败: ' + he(e.message) + '</div>';
+    }
+});
+
+function renderAll() {
+    renderBasicInfo();
+    renderInstructions();
+    renderExamples();
+    renderQuestions();
+    renderWarning();
+}
+
+// ============ Section 1: 基本信息 ============
+function renderBasicInfo() {
+    document.getElementById('name').value = appState.study.name || '';
+    document.getElementById('title').value = appState.config.title || '';
+    document.getElementById('description').value = appState.study.description || '';
+    document.getElementById('statusDisplay').textContent = statusLabel(appState.study.status);
+    document.getElementById('participantCount').textContent = appState.study.participant_count != null
+        ? appState.study.participant_count : '-';
+    document.getElementById('responseCount').textContent = appState.study.response_count != null
+        ? appState.study.response_count : '-';
+}
+
+function statusLabel(s) {
+    if (s === 'active') return '进行中';
+    if (s === 'paused') return '已暂停';
+    if (s === 'archived') return '已归档';
+    return s;
+}
+
+// ============ Section 2: 介绍说明 ============
+function renderInstructions() {
+    let text = appState.config.instructions || '';
+    // 处理两种换行问题：
+    // 1. 字面 \\n 两字符 → 替换为实际换行
+    // 2. 允许 textarea 正常显示多行
+    text = text.replace(/\\n/g, '\n');
+    document.getElementById('instructions').value = text;
+}
+
+// ============ Section 3: 示例图 ============
+function syncExamplesFromDOM() {
+    // 在重渲染前，从 DOM 收集用户已输入的值
+    const cards = document.querySelectorAll('#exampleList .card');
+    if (cards.length === 0) return;
+    cards.forEach((card, idx) => {
+        if (idx >= appState.examples.length) return;
+        const textEl = card.querySelector('.example-text');
+        if (textEl) appState.examples[idx].text = textEl.value;
+        const imgEls = card.querySelectorAll('.example-img');
+        imgEls.forEach((el, iIdx) => {
+            if (iIdx < (appState.examples[idx].images || []).length) {
+                appState.examples[idx].images[iIdx] = el.value;
+            }
+        });
+    });
+}
+
+function renderExamples() {
+    const list = document.getElementById('exampleList');
+    const count = document.getElementById('exampleCount');
+    count.textContent = appState.examples.length;
+
+    if (appState.examples.length === 0) {
+        list.innerHTML = '<p class="text-muted small mb-0">暂无示例图，点击下方按钮添加。</p>';
+        return;
+    }
+
+    list.innerHTML = appState.examples.map((ex, idx) => {
+        const imagesHtml = (ex.images || []).map((img, iIdx) => {
+            const uploadId = `upload_ex${idx}_img${iIdx}`;
+            const statusId = `upload_status_ex${idx}_img${iIdx}`;
+            const inputId = `img_input_ex${idx}_img${iIdx}`;
+            return `
+            <div class="input-group input-group-sm mb-1">
+                <span class="input-group-text" style="min-width:50px">图${iIdx + 1}</span>
+                <input type="text" class="form-control example-img" data-example="${idx}" data-img="${iIdx}"
+                       id="${inputId}" value="${he(img)}" placeholder="/static/examples/xxx.png"
+                       style="flex:1 1 auto; min-width:0">
+                <input type="file" class="d-none" id="${uploadId}"
+                       accept=".png,.jpg,.jpeg,.gif,.webp,.svg"
+                       onchange="uploadExampleImage(${idx}, ${iIdx}, this)">
+                <button class="btn btn-outline-secondary" type="button"
+                        onclick="document.getElementById('${uploadId}').click()" title="上传图片">
+                    <i class="bi bi-upload"></i>
+                </button>
+                <span id="${statusId}" class="input-group-text text-muted small d-none" style="min-width:60px"></span>
+                <button class="btn btn-outline-danger" type="button"
+                        onclick="removeExampleImage(${idx}, ${iIdx})" title="删除此图">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>`;
+        }).join('');
+
+        return `
+        <div class="card mb-2 border">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <strong class="me-2">示例 ${idx + 1}</strong>
+                    <button class="btn btn-outline-danger btn-sm" onclick="removeExample(${idx})" title="删除此示例">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <textarea class="form-control form-control-sm mb-2 example-text" data-example="${idx}"
+                          rows="2" placeholder="示例说明文字">${he(ex.text || '')}</textarea>
+                <div class="example-images" data-example="${idx}">
+                    ${imagesHtml || '<p class="text-muted small mb-1">暂无图片</p>'}
+                </div>
+                <div id="examplePreviews_${idx}">
+                    ${(ex.images || []).map((img, iIdx) => img ? 
+                        `<img src="${he(img)}" class="img-thumbnail me-1 mb-1" style="max-height:80px;max-width:120px"
+                              onerror="this.style.display='none'" title="图${iIdx + 1}">` : ''
+                    ).join('')}
+                </div>
+                <button class="btn btn-outline-secondary btn-sm mt-1" onclick="addExampleImage(${idx})">
+                    <i class="bi bi-plus-lg"></i> 添加图片
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function addExample() {
+    syncExamplesFromDOM();
+    appState.examples.push({ text: '', images: [] });
+    renderExamples();
+    appState.dirty = true;
+}
+
+function removeExample(idx) {
+    if (!confirm('确定删除示例 ' + (idx + 1) + '？')) return;
+    syncExamplesFromDOM();
+    appState.examples.splice(idx, 1);
+    renderExamples();
+    appState.dirty = true;
+}
+
+function addExampleImage(exampleIdx) {
+    syncExamplesFromDOM();
+    appState.examples[exampleIdx].images = appState.examples[exampleIdx].images || [];
+    appState.examples[exampleIdx].images.push('');
+    renderExamples();
+    appState.dirty = true;
+}
+
+function removeExampleImage(exampleIdx, imgIdx) {
+    syncExamplesFromDOM();
+    appState.examples[exampleIdx].images.splice(imgIdx, 1);
+    renderExamples();
+    appState.dirty = true;
+}
+
+async function uploadExampleImage(exampleIdx, imgIdx, fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById(`upload_status_ex${exampleIdx}_img${imgIdx}`);
+    const inputEl = document.getElementById(`img_input_ex${exampleIdx}_img${imgIdx}`);
+
+    // 显示上传中
+    if (statusEl) {
+        statusEl.classList.remove('d-none');
+        statusEl.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const resp = await fetch('/admin/upload-example-image', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.detail || '上传失败');
+
+        // 同步到 appState（避免重新渲染时丢失）
+        appState.examples[exampleIdx].images = appState.examples[exampleIdx].images || [];
+        appState.examples[exampleIdx].images[imgIdx] = result.url;
+
+        // 更新输入框的值
+        if (inputEl) inputEl.value = result.url;
+
+        if (statusEl) {
+            statusEl.innerHTML = '<i class="bi bi-check-lg text-success"></i>';
+            setTimeout(() => { statusEl.classList.add('d-none'); }, 2000);
+        }
+
+        // 显示缩略图预览
+        showExamplePreview(exampleIdx, imgIdx, result.url);
+
+        appState.dirty = true;
+    } catch (e) {
+        if (statusEl) {
+            statusEl.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i>';
+            setTimeout(() => { statusEl.classList.add('d-none'); }, 3000);
+        }
+        alert('上传失败: ' + e.message);
+    } finally {
+        fileInput.value = '';
+    }
+}
+
+function showExamplePreview(exampleIdx, imgIdx, url) {
+    // 在输入框下方显示缩略图预览
+    const container = document.querySelector(`#exampleList .example-images[data-example="${exampleIdx}"]`);
+    if (!container) return;
+
+    let preview = container.querySelector(`.preview-ex${exampleIdx}-img${imgIdx}`);
+    if (!preview) {
+        preview = document.createElement('div');
+        preview.className = `preview-ex${exampleIdx}-img${imgIdx} mt-1`;
+        preview.innerHTML = `<img src="${url}" class="img-thumbnail" style="max-height:100px;max-width:100%"
+                                  onerror="this.style.display='none'">`;
+        container.appendChild(preview);
+    } else {
+        preview.innerHTML = `<img src="${url}" class="img-thumbnail" style="max-height:100px;max-width:100%"
+                                  onerror="this.style.display='none'">`;
+    }
+}
+
+// ============ Section 4: 问题列表 ============
+function renderQuestions() {
+    const tbody = document.getElementById('questionsTbody');
+    const countBadge = document.getElementById('questionCount');
+    const lockBadge = document.getElementById('questionLockBadge');
+    const lockedHint = document.getElementById('questionsLockedHint');
+    const lockedCount = document.getElementById('lockedResponseCount');
+
+    countBadge.textContent = appState.questions.length;
+
+    if (appState.hasResponses) {
+        lockBadge.style.display = 'inline';
+        lockedHint.style.display = 'block';
+        lockedCount.textContent = appState.study.response_count || 0;
+    } else {
+        lockBadge.style.display = 'none';
+        lockedHint.style.display = 'none';
+    }
+
+    if (appState.questions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">暂无题目</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = appState.questions.map((q, idx) => {
+        const imgCount = (q.images || []).length;
+        const models = (q.models || []).join(', ');
+        // q.prompt 在 loadConfig 时已经清洗为纯文本
+        return `
+        <tr>
+            <td class="text-muted small" style="width:32px">${idx + 1}</td>
+            <td style="width:72px"><code class="small" style="font-size:11px">${he(q.id || '')}</code></td>
+            <td>
+                <textarea class="form-control form-control-sm question-prompt"
+                       data-idx="${idx}" rows="3" style="font-size:12px;line-height:1.5;resize:vertical"
+                       ${appState.hasResponses ? 'disabled readonly' : ''}>${he(q.prompt || '')}</textarea>
+            </td>
+            <td style="width:72px"><span class="badge bg-light text-dark">${he(q.type || 'choose_one')}</span></td>
+            <td class="text-center" style="width:48px">${imgCount}</td>
+            <td style="width:100px"><small class="text-muted">${he(models || '-')}</small></td>
+        </tr>`;
+    }).join('');
+}
+
+function renderWarning() {
+    const warning = document.getElementById('responseWarning');
+    if (appState.hasResponses) {
+        warning.style.display = 'block';
+    }
+}
+
+// ============ Section Toggle ============
+function toggleSection(id) {
+    const el = document.getElementById(id);
+    const icon = document.getElementById(id + 'Icon');
+    if (el.style.display === 'none') {
+        el.style.display = '';
+        if (icon) { icon.className = 'bi bi-chevron-down ms-auto'; }
+    } else {
+        el.style.display = 'none';
+        if (icon) { icon.className = 'bi bi-chevron-right ms-auto'; }
+    }
+}
+
+// ============ 收集表单数据 ============
+function collectFormData() {
+    // 收集 examples（从 DOM 读取，因为用户可能编辑了 input）
+    const currentExamples = [];
+    const exampleCards = document.querySelectorAll('#exampleList .card');
+    exampleCards.forEach(card => {
+        const textEl = card.querySelector('.example-text');
+        const imgEls = card.querySelectorAll('.example-img');
+        const text = textEl ? textEl.value : '';
+        const images = [];
+        imgEls.forEach(el => images.push(el.value));
+        currentExamples.push({ text, images });
+    });
+
+    // 收集 questions prompt（如果未锁定且可编辑）
+    let questions = appState.questions;
+    if (!appState.hasResponses) {
+        const promptInputs = document.querySelectorAll('.question-prompt');
+        questions = appState.questions.map((q, idx) => {
+            const input = promptInputs[idx];
+            if (!input) return { ...q, prompt: q.rawPrompt || q.prompt };
+            const newValue = input.value;
+            // 如果用户没有修改（newValue === 清洗后的文本），保留原始 HTML 格式
+            const cleaned = stripHtml(q.rawPrompt || q.prompt || '');
+            const usedPrompt = (newValue === cleaned) ? (q.rawPrompt || cleaned) : newValue;
+            // 去掉内部字段 rawPrompt，只传标准字段
+            const { rawPrompt, ...rest } = q;
+            return { ...rest, prompt: usedPrompt };
+        });
+    } else {
+        // 有回答的问卷：去掉内部字段再发送
+        questions = questions.map(q => {
+            const { rawPrompt, ...rest } = q;
+            return { ...rest, prompt: q.rawPrompt || q.prompt };
+        });
+    }
+
+    return {
+        name: document.getElementById('name').value.trim(),
+        title: document.getElementById('title').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        instructions: document.getElementById('instructions').value,
+        examples: currentExamples,
+        questions: questions
+    };
+}
+
+// ============ 保存 ============
+async function saveConfig() {
+    const data = collectFormData();
+
+    if (!data.title) {
+        alert('页面标题不能为空');
+        return;
+    }
+    if (!data.instructions) {
+        alert('介绍说明不能为空');
+        return;
+    }
+
+    const btn = document.getElementById('saveBtn');
+    const status = document.getElementById('saveStatus');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>保存中...';
+    status.style.display = 'none';
+
+    try {
+        const resp = await fetch(`/admin/api/studies/${STUDY_CODE}/config`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.detail || '保存失败');
+
+        // 更新本地状态
+        appState.config.title = data.title;
+        appState.config.instructions = data.instructions;
+        appState.config.examples = data.examples;
+        appState.study.name = data.name;
+        appState.study.description = data.description;
+
+        status.textContent = result.message || '保存成功';
+        status.className = 'text-success me-2';
+        status.style.display = 'inline';
+        appState.dirty = false;
+
+        if (result.questions_locked) {
+            alert('配置已保存。题目列表因有回答记录而未修改。');
+        }
+    } catch (e) {
+        status.textContent = '保存失败: ' + e.message;
+        status.className = 'text-danger me-2';
+        status.style.display = 'inline';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> 保存配置';
+        setTimeout(() => { status.style.display = 'none'; }, 5000);
+    }
+}
+
+// ============ 离开前确认 ============
+window.addEventListener('beforeunload', (e) => {
+    if (appState.dirty) {
+        e.preventDefault();
+        e.returnValue = '您有未保存的修改，确定离开吗？';
+    }
+});
+
+// 任何表单修改标记 dirty
+document.addEventListener('input', (e) => {
+    if (e.target.closest('#editorContent')) {
+        appState.dirty = true;
+    }
+});
+
+// ============ 工具函数 ============
+function he(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function stripHtml(html) {
+    // 去除 HTML 标签，&lt;br&gt; 和 <br> 都转为换行
+    if (!html) return '';
+    return String(html)
+        .replace(/&lt;br\s*\/?&gt;/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/&lt;[^&]+&gt;/g, '')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+</script>
+{% endblock %}

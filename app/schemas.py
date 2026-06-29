@@ -29,6 +29,14 @@ class ParticipantCreate(BaseModel):
     """创建参与者请求"""
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
+    
+    # 新增：更多用户特征（用于分析，不去重）
+    screen_resolution: Optional[str] = None  # 如 "1920x1080"
+    language: Optional[str] = None  # 如 "zh-CN"
+    timezone: Optional[str] = None  # 如 "Asia/Shanghai"
+    platform: Optional[str] = None  # 如 "Win32", "MacIntel"
+    cookies_enabled: Optional[str] = None  # "true" / "false"
+    do_not_track: Optional[str] = None  # "1" / "0" / "unspecified"
 
 
 class ParticipantOut(BaseModel):
@@ -220,6 +228,100 @@ class QuestionPageData(BaseModel):
     images: List[tuple]  # [(path, index), ...]
     participant_id: str
     progress_percent: float
+
+
+# ==================== Zip 上传相关 ====================
+
+class ZipImageInfo(BaseModel):
+    """Zip 包中单张图片的信息"""
+    filename: str
+    size_bytes: int
+    width: int = 0
+    height: int = 0
+
+
+class ZipPromptInfo(BaseModel):
+    """Zip 包中单个 prompt 的信息"""
+    name: str
+    file_count: int
+    images: List[ZipImageInfo]
+
+
+class MethodCandidate(BaseModel):
+    """方法候选"""
+    source: str       # 文件名中提取的原始标识符
+    method: str       # 确认后的方法名
+    variant: Optional[str] = None  # 变体名
+    confidence: str = "high"  # high / uncertain / low
+    present_in: int = 0  # 出现在几个 prompt 中
+
+
+class MethodAnalysisResult(BaseModel):
+    """方法分析结果"""
+    candidates: List[MethodCandidate]
+    missing_matrix: Dict[str, List[str]] = {}
+
+
+class ZipUploadResponse(BaseModel):
+    """上传 zip 后的分析响应"""
+    upload_id: str
+    emotion: str
+    emotion_cn: str = ""
+    prompt_count: int
+    prompts: List[ZipPromptInfo]
+    method_analysis: MethodAnalysisResult
+    total_size_mb: float = 0.0
+
+
+class ConfirmMethod(BaseModel):
+    """确认/提交时的单个方法映射"""
+    source: str
+    method: str
+    variant: Optional[str] = None
+
+
+class ConfirmZipRequest(BaseModel):
+    """确认 zip 并生成问卷的请求"""
+    upload_id: str
+    study_name: str = ""
+    study_code: str = ""
+    emotion: str
+    description: str = ""
+    instructions: str = ""
+    title: str = "User Study"
+    prompt_translations: Dict[str, str] = {}
+    emotion_cn: str = ""
+    question_types: List[str] = ["emotion", "content"]
+    save_translations: bool = True
+    methods: List[ConfirmMethod]
+    image_settings: Dict[str, Any] = {}
+    duplicate_action: str = "rename"  # rename / overwrite / abort
+
+
+class ConfirmZipResponse(BaseModel):
+    """确认 zip 生成的问卷响应"""
+    success: bool = True
+    study: Dict[str, Any]
+    processed_images: int = 0
+    skipped_images: int = 0
+    total_size_mb: float = 0.0
+
+
+class DuplicateInfo(BaseModel):
+    """重名问卷信息"""
+    code: str
+    name: str
+    created_at: str
+
+
+class LlmTranslateRequest(BaseModel):
+    """LLM 翻译请求"""
+    prompts: List[str]
+
+
+class TranslationBatchUpdate(BaseModel):
+    """批量更新翻译词条请求"""
+    translations: Dict[str, Optional[str]]
 
 
 # 解决循环引用

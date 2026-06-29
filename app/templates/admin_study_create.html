@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 
 {% block title %}创建问卷 - 管理后台{% endblock %}
+{% block nav_href %}/admin/{% endblock %}
 {% block nav_title %}管理后台{% endblock %}
 
 {% block nav_extra %}
 <div class="navbar-nav ms-auto">
-    <a href="/admin/studies?pw={{ pw }}" class="btn btn-light btn-sm me-2">返回列表</a>
+    <a href="/admin/studies" class="btn btn-light btn-sm me-2">返回列表</a>
     <a href="/" class="btn btn-light btn-sm">返回首页</a>
 </div>
 {% endblock %}
@@ -19,14 +20,30 @@
                 创建新问卷
             </h4>
         </div>
-        
+
+        <!-- Tab Navigation -->
+        <ul class="nav nav-tabs mb-3" id="createTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-panel" type="button" role="tab">
+                    <i class="bi bi-file-earmark-code me-1"></i>JSON 上传
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="zip-tab" data-bs-toggle="tab" data-bs-target="#zip-panel" type="button" role="tab">
+                    <i class="bi bi-file-earmark-zip me-1"></i>Zip 上传
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- JSON upload tab -->
+            <div class="tab-pane fade show active" id="manual-panel" role="tabpanel">
         <div class="card">
             <div class="card-header bg-light">
                 <strong>问卷信息</strong>
             </div>
             <div class="card-body">
                 <form action="/admin/studies/create" method="post" enctype="multipart/form-data">
-                    <input type="hidden" name="pw" value="{{ pw }}">
                     
                     <div class="mb-3">
                         <label for="name" class="form-label">
@@ -38,19 +55,13 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="code" class="form-label">
+                        <label class="form-label">
                             短代码
                         </label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="code" name="code"
-                                   placeholder="留空则自动生成"
-                                   maxlength="20" pattern="[a-z0-9_]+"
-                                   oninput="this.value = this.value.toLowerCase().replace(/[^a-z0-9_]/g, '')">
-                            <button type="button" class="btn btn-outline-secondary" onclick="generateCode()">
-                                <i class="bi bi-shuffle"></i> 随机生成
-                            </button>
+                        <div class="alert alert-light border mb-0 py-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            短代码将在创建问卷时自动生成，格式为 6 位字母+数字（如 <code>a3x9k2</code>），确保唯一不重复。
                         </div>
-                        <div class="form-text">用于访问问卷的短链接，如 "user2024"，只包含小写字母、数字和下划线</div>
                     </div>
                     
                     <div class="mb-3">
@@ -71,7 +82,7 @@
                     </div>
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="/admin/studies?pw={{ pw }}" class="btn btn-outline-secondary">取消</a>
+                        <a href="/admin/studies" class="btn btn-outline-secondary">取消</a>
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-circle me-1"></i>
                             创建问卷
@@ -113,21 +124,32 @@
                 </div>
             </div>
         </div>
+            </div><!-- end manual tab -->
+
+            <!-- Zip upload tab -->
+            <div class="tab-pane fade" id="zip-panel" role="tabpanel">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <strong>📦 Zip 上传创建问卷</strong>
+                    </div>
+                    <div class="card-body text-center py-5">
+                        <p class="text-muted mb-3">上传包含图片的 Zip 文件，自动解析方法名并生成问卷配置</p>
+                        <a href="/admin/studies/zip-create" class="btn btn-primary btn-lg">
+                            <i class="bi bi-file-earmark-zip me-2"></i>进入 Zip 上传向导
+                        </a>
+                        <div class="mt-3 text-muted small">
+                            支持格式：目录结构为 <code>prompt/图片文件</code> 的 Zip 压缩包
+                        </div>
+                    </div>
+                </div>
+            </div><!-- end zip tab -->
+        </div><!-- end tab-content -->
     </div>
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block scripts %}
 <script>
-function generateCode() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    document.getElementById('code').value = code;
-}
-
 // 文件上传验证
 document.getElementById('configfile').addEventListener('change', function() {
     const file = this.files[0];

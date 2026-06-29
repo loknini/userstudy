@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}{{ error_title }} - 用户研究平台{% endblock %}
+{% block nav_title %}用户研究平台{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow">
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 4rem;"></i>
+                    </div>
+                    <h3 class="card-title mb-3">{{ error_title }}</h3>
+                    <p class="card-text text-muted mb-4">{{ error_message }}</p>
+                    <a href="{{ back_url }}" class="btn btn-primary">
+                        <i class="bi bi-arrow-left me-1"></i> 返回首页
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,910 @@
+{% extends "base.html" %}
+
+{% block title %}Zip 上传创建问卷 - 管理后台{% endblock %}
+{% block nav_href %}/admin/{% endblock %}
+{% block nav_title %}管理后台{% endblock %}
+
+{% block nav_extra %}
+<div class="navbar-nav ms-auto">
+    <a href="/admin/studies" class="btn btn-light btn-sm me-2">返回列表</a>
+    <a href="/admin/logout" class="btn btn-light btn-sm">登出</a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 2rem;
+    }
+    .step-dot {
+        width: 36px; height: 36px; border-radius: 50%;
+        background: #e9ecef; display: flex;
+        align-items: center; justify-content: center;
+        font-weight: 600; font-size: 14px; color: #6c757d;
+        transition: all 0.3s;
+    }
+    .step-dot.active { background: #0d6efd; color: #fff; }
+    .step-dot.done { background: #198754; color: #fff; }
+    .step-line {
+        width: 40px; height: 2px; background: #dee2e6; align-self: center;
+    }
+    .step-line.active { background: #0d6efd; }
+    .step-line.done { background: #198754; }
+
+    /* 进度条 */
+    .upload-progress { margin-top: 12px; display: none; }
+    .upload-progress.active { display: block; }
+    .progress { height: 20px; border-radius: 10px; }
+    .progress-bar { transition: width 0.2s; font-size: 13px; line-height: 20px; }
+    .upload-stats { display: flex; justify-content: space-between; font-size: 13px; color: #6c757d; margin-top: 6px; }
+    .file-info-box {
+        background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;
+        padding: 12px 16px; margin-top: 8px; display: none; align-items: center; gap: 12px;
+    }
+    .file-info-box.active { display: flex; }
+    .file-info-box .file-icon { font-size: 28px; }
+    .file-info-box .file-details { flex: 1; }
+    .file-info-box .file-name { font-weight: 600; font-size: 14px; word-break: break-all; }
+    .file-info-box .file-size { font-size: 12px; color: #6c757d; }
+    .file-info-box .file-status.ok { color: #198754; }
+
+    /* 批量进度 */
+    .batch-progress { display: none; }
+    .batch-progress.active { display: block; }
+    .batch-item {
+        display: flex; align-items: center; gap: 8px; padding: 4px 0;
+        font-size: 13px;
+    }
+    .batch-item .status-icon { width: 16px; text-align: center; }
+    .batch-item .status-icon.ok { color: #198754; }
+    .batch-item .status-icon.fail { color: #dc3545; }
+    .batch-item .status-icon.running { color: #0d6efd; }
+
+    /* 汇总表格 */
+    .summary-table { width: 100%; }
+    .summary-table th, .summary-table td { padding: 8px 12px; font-size: 14px; }
+    .summary-table tbody tr { border-bottom: 1px solid #eee; }
+
+    /* 方法标签 — 可点击编辑 */
+    .method-badge { font-size: 12px; }
+    .method-name-input { font-family: 'Courier New', monospace; font-size: 13px; }
+
+    /* 步骤动画 */
+    .step-animate { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .step-pulse { width: 8px; height: 8px; border-radius: 50%; background: #0d6efd; animation: pulse-dot 1.4s ease-in-out infinite; }
+    .step-pulse:nth-child(2) { animation-delay: 0.2s; }
+    .step-pulse:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse-dot {
+        0%,80%,100% { opacity: 0.3; transform: scale(0.8); }
+        40% { opacity: 1; transform: scale(1.2); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4" id="wizard-app">
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem;">
+            <span class="visually-hidden">加载中...</span>
+        </div>
+        <p class="mt-3 text-muted">页面加载中，请稍候...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var app = document.getElementById('wizard-app');
+    if (!app) return;
+
+    // ====== State ======
+    var state = {
+        step: 1,
+        uploadId: '',
+        uploading: false,
+        uploadProgress: 0,
+        uploadSpeed: '',
+        uploadEta: '',
+        uploadPhase: '',
+        selectedFile: null,
+        analyzing: false,
+        confirming: false,
+        uploadError: '',
+        confirmError: '',
+        emotions: null,
+        emotionCnMap: {},
+        batchResults: [],         // 每个情感的分析结果
+        batchPhase: '',           // 'analyzing' | 'creating' | ''
+        batchProgress: {done: 0, total: 0, current: ''},
+        // 共享设置
+        imgSettings: { compress: true, max_size: 512, quality: 85 },
+        studyTitle: 'User Study: 可控的情感图像内容生成',
+        instructions: '我们的任务是"可控的情感图像内容生成"，旨在根据文本描述，生成不仅内容准确，而且能唤起指定情感体验的图像。\n\n在接下来的问卷中，每个问题会给出一个文本描述和目标情感，并展示由不同模型生成的多张图像。\n\n请您思考并回答以下两个核心问题：\n\n1. 问题一：哪张图最能让您感受到指定的情感？\n\n2. 问题二：哪张图最符合内容描述？\n\n本次实验预计耗时约10分钟，感谢您的认真参与！',
+        questionTypes: ['emotion', 'content'],
+        saveTranslations: true,
+        result: null,
+    };
+
+    // ====== Render ======
+    function render() {
+        var html = '';
+
+        // Step indicator — 2 步：上传分析 → 确认创建
+        html += '<div class="step-indicator">';
+        for (var i = 1; i <= 2; i++) {
+            if (i > 1) html += '<div class="step-line' + (state.step > i ? ' done' : '') + (state.step === i ? ' active' : '') + '"></div>';
+            html += '<div class="step-dot' + (state.step === i ? ' active' : '') + (state.step > i ? ' done' : '') + '">' + i + '</div>';
+        }
+        html += '</div>';
+
+        if (state.step === 1) {
+            html += renderStep1();
+        } else if (state.step === 2) {
+            html += renderConfirmation();
+        } else if (state.step === 3 && state.result) {
+            html += renderSuccess();
+        }
+
+        app.innerHTML = html;
+        bindEvents();
+    }
+
+    function renderSuccess() {
+        var s = state.result.study;
+        var h = '<div class="text-center py-4"><h3 class="text-success mb-3">✅ 问卷创建完成！</h3>';
+        h += '<div class="card mx-auto" style="max-width:500px"><div class="card-body text-start">';
+        h += '<p><strong>名称：</strong>' + he(s.name || '') + '</p>';
+        h += '<p><strong>代码：</strong><code>' + he(s.code || '') + '</code></p>';
+        h += '<p><strong>题目数：</strong>' + (s.question_count || 0) + '</p>';
+        if (state.result.processed_images) {
+            h += '<p><strong>处理图片：</strong>' + state.result.processed_images + ' 张';
+            var hasWarning = false;
+            if (state.result.skipped_images > 0) {
+                hasWarning = true;
+                h += ' <span class="text-warning">⚠ ' + state.result.skipped_images + ' 张跳过</span>';
+            }
+            if (state.result.missing_images > 0) {
+                hasWarning = true;
+                h += ' <span class="text-danger">❌ ' + state.result.missing_images + ' 张缺失</span>';
+            }
+            h += '</p>';
+            // 显示跳过/缺失明细
+            if (hasWarning) {
+                var detailsHtml = '';
+                // 缺失明细（更严重，放前面）
+                var missing = state.result.missing_details || [];
+                if (missing.length > 0) {
+                    detailsHtml += '<strong>🔴 缺失（方法无匹配文件）：</strong><br>';
+                    missing.forEach(function(d) {
+                        detailsHtml += '<span style="word-break:break-all">• <code>' + he(d.emotion + '/' + d.prompt + '/' + d.source) + '</code> → 方法 ' + he(d.method) + '</span><br>';
+                    });
+                    if (state.result.missing_images > missing.length) {
+                        detailsHtml += '<span class="text-muted">… 还有 ' + (state.result.missing_images - missing.length) + ' 条</span><br>';
+                    }
+                }
+                // 跳过明细
+                var skipped = state.result.skipped_details || [];
+                if (skipped.length > 0) {
+                    if (missing.length > 0) detailsHtml += '<br>';
+                    detailsHtml += '<strong>⚠️ 跳过（处理失败）：</strong><br>';
+                    skipped.forEach(function(d) {
+                        detailsHtml += '<span style="word-break:break-all">• <code>' + he(d.file) + '</code> — ' + he(d.reason) + '</span><br>';
+                    });
+                    if (state.result.skipped_images > skipped.length) {
+                        detailsHtml += '<span class="text-muted">… 还有 ' + (state.result.skipped_images - skipped.length) + ' 条</span><br>';
+                    }
+                }
+                if (detailsHtml) {
+                    h += '<div class="alert alert-warning mt-2 mb-0 py-2 px-3" style="font-size:12px;max-height:200px;overflow-y:auto">';
+                    h += detailsHtml;
+                    h += '</div>';
+                }
+            }
+        }
+        h += '<div class="mt-3 d-flex gap-2">';
+        h += '<a href="/study/' + he(s.code) + '" class="btn btn-outline-primary btn-sm" target="_blank">预览问卷</a>';
+        h += '<a href="/admin/studies" class="btn btn-primary btn-sm">返回问卷列表</a>';
+        h += '</div></div></div></div>';
+        return h;
+    }
+
+    function renderStep1() {
+        if (state.analyzing) {
+            return '<div class="text-center py-5">' +
+                '<div class="step-animate mb-3"><span class="step-pulse"></span><span class="step-pulse"></span><span class="step-pulse"></span></div>' +
+                '<p class="text-muted mb-1">正在解析 Zip 结构并翻译 Prompt...</p>' +
+                '<p class="text-muted small">' + state.batchProgress.done + '/' + state.batchProgress.total + ' - ' + he(state.batchProgress.current) + '</p></div>';
+        }
+
+        if (!state.emotions) {
+            return renderUploadForm();
+        }
+
+        if (state.emotions.length === 0) {
+            return '<div class="alert alert-danger">未检测到情感类别目录。请确保 Zip 根目录下包含情感名称的子文件夹。</div>' +
+                '<button class="btn btn-secondary" onclick="location.reload()">重新上传</button>';
+        }
+
+        // 检测到情感后自动分析全部，无需用户手动选择
+        if (!state._autoAnalyzeTriggered) {
+            state._autoAnalyzeTriggered = true;
+            setTimeout(function() { batchAnalyze(); }, 100);
+        }
+
+        return '<div class="text-center py-4">' +
+            '<p class="text-muted">检测到 <strong>' + state.emotions.length + '</strong> 个情感类别，正在自动分析...</p>' +
+            '<div class="step-animate"><span class="step-pulse"></span><span class="step-pulse"></span><span class="step-pulse"></span></div>' +
+            '</div>';
+    }
+
+    function renderUploadForm() {
+        var h = '<div class="row justify-content-center"><div class="col-md-7"><div class="card">';
+        h += '<div class="card-header bg-primary text-white"><strong>📦 上传 Zip 文件</strong></div>';
+        h += '<div class="card-body">';
+        h += '<div class="alert alert-info mb-3"><strong>格式要求：</strong>Zip 根目录为情感类别文件夹，每个情感下放 prompt 子文件夹。<br>';
+        h += '<small class="text-muted">示例：study.zip → amusement/ → prompt_A/ → sd.png, sdxl.png</small></div>';
+
+        h += '<div class="mb-3"><label class="form-label fw-semibold">选择 Zip 文件 <span class="text-danger">*</span></label>';
+        h += '<input type="file" class="form-control" accept=".zip" id="zip-input">';
+        h += '<div class="form-text">最大 500MB，系统将自动检测所有情感类别并批量创建问卷</div></div>';
+
+        h += '<div class="file-info-box' + (state.selectedFile ? ' active' : '') + '" id="file-info">';
+        if (state.selectedFile) {
+            h += '<span class="file-icon">📦</span>';
+            h += '<div class="file-details"><div class="file-name">' + he(state.selectedFile.name) + '</div>';
+            h += '<div class="file-size">' + formatBytes(state.selectedFile.size) + '</div></div>';
+            h += '<span class="file-status ok">✓ 已就绪</span>';
+        }
+        h += '</div>';
+
+        h += '<div class="upload-progress' + (state.uploading ? ' active' : '') + '" id="upload-progress">';
+        h += '<div class="progress"><div class="progress-bar progress-bar-striped';
+        if (state.uploadProgress < 100) h += ' progress-bar-animated';
+        h += '" role="progressbar" style="width:' + state.uploadProgress + '%">' + state.uploadProgress + '%</div></div>';
+        h += '<div class="upload-stats">';
+        if (state.uploadPhase) h += '<span>' + he(state.uploadPhase) + '</span>';
+        h += '<span>' + he(state.uploadSpeed) + '</span><span>' + he(state.uploadEta) + '</span>';
+        h += '</div></div>';
+
+        if (state.uploadError) h += '<div class="alert alert-danger mt-3">' + he(state.uploadError) + '</div>';
+
+        h += '<button type="button" class="btn btn-primary w-100 mt-2" id="upload-btn"';
+        if (state.uploading || !state.selectedFile) h += ' disabled';
+        h += '>';
+        if (state.uploading) { h += '<span class="spinner-border spinner-border-sm me-2"></span>正在处理...'; }
+        else { h += '上传并检测'; }
+        h += '</button>';
+        h += '</div></div></div></div>';
+        return h;
+    }
+
+    function renderConfirmation() {
+        if (!state.batchResults || state.batchResults.length === 0) {
+            state.step = 1; render(); return '';
+        }
+
+        // 收集所有情感共有的方法列表
+        var allMethods = collectAllMethods();
+
+        var h = '';
+
+        // 汇总表 — 方法名可编辑
+        h += '<div class="card mb-3"><div class="card-header bg-light"><strong>📊 创建预览</strong>';
+        h += ' <small class="text-muted">共 ' + state.batchResults.length + ' 个情感类别，将合并到 <strong>1 个问卷</strong> 中</small></div>';
+        h += '<div class="card-body p-0"><table class="table table-sm summary-table mb-0"><thead><tr>';
+        h += '<th>情感</th><th>中文名</th><th>Prompts</th><th>方法数</th><th>方法列表 <small class="text-muted">(下方统一编辑)</small></th>';
+        h += '</tr></thead><tbody>';
+        state.batchResults.forEach(function(r, ei) {
+            if (r._error) {
+                h += '<tr class="table-danger">';
+                h += '<td><strong>' + he(r.emotion) + '</strong></td>';
+                h += '<td>' + he(r.emotion_cn || '') + '</td>';
+                h += '<td colspan="3"><span class="text-danger">✗ ' + he(r._error) + '</span></td>';
+                h += '</tr>';
+            } else {
+                var methodTags = (r.methods || []).map(function(m, mi) {
+                    return '<span class="badge bg-light text-dark method-badge method-badge-readonly" ' +
+                        'id="method-badge-' + ei + '-' + mi + '" ' +
+                        'style="margin:2px">' +
+                        he(m.method) + '</span>';
+                }).join(' ');
+                h += '<tr>';
+                h += '<td><strong>' + he(r.emotion) + '</strong></td>';
+                h += '<td id="emotion-cn-cell-' + ei + '" onclick="Wizard.startEditEmotionCn(' + ei + ')" title="点击编辑中文名" style="cursor:pointer">' + he(r.emotion_cn || '') + '</td>';
+                h += '<td>' + (r.prompts ? r.prompts.length : 0) + '</td>';
+                h += '<td>' + (r.methods ? r.methods.length : 0) + '</td>';
+                h += '<td id="methods-cell-' + ei + '">' + methodTags + '</td>';
+                h += '</tr>';
+            }
+        });
+        h += '</tbody></table></div></div>';
+
+        // 方法列表区 — 显示 name:source 映射
+        if (allMethods.length > 0) {
+            h += '<div class="card mb-3"><div class="card-header bg-light"><strong>🔧 方法名映射</strong> ';
+            h += '<small class="text-muted">可编辑显示名称，source 不可修改。相同 source 在不同情感中共享同一个显示名。</small></div>';
+            h += '<div class="card-body"><div class="row" id="method-mapping-grid">';
+            allMethods.forEach(function(m, mi) {
+                h += '<div class="col-md-4 col-lg-3 mb-2">';
+                h += '<div class="input-group input-group-sm">';
+                h += '<span class="input-group-text" style="font-size:11px">' + he(m.source) + '</span>';
+                h += '<input type="text" class="form-control form-control-sm method-name-input"';
+                h += ' value="' + he(m.method) + '"';
+                h += ' data-source="' + he(m.source) + '"';
+                h += ' onchange="Wizard.syncMethodName(\'' + he(m.source) + '\', this.value)"';
+                h += ' style="font-size:13px">';
+                h += '</div></div>';
+            });
+            h += '</div></div></div>';
+        }
+
+        // 翻译编辑卡片
+        var allPrompts = collectAllPrompts();
+        var autoCount = allPrompts.filter(function(p) { return p.source === 'auto'; }).length;
+        var cacheCount = allPrompts.filter(function(p) { return p.source === 'cache'; }).length;
+        var missingCount = allPrompts.filter(function(p) { return p.source === 'none'; }).length;
+        if (allPrompts.length > 0) {
+            var warnClass = missingCount > 0 ? 'border-warning' : (autoCount > 0 ? 'border-info' : 'border-success');
+            var headerClass = missingCount > 0 ? 'bg-warning bg-opacity-10' : (autoCount > 0 ? 'bg-info bg-opacity-10' : 'bg-success bg-opacity-10');
+            h += '<div class="card mb-3 ' + warnClass + '" id="translation-card">';
+            h += '<div class="card-header ' + headerClass + '"><strong>🌐 Prompt 中文翻译</strong> ';
+            h += '<small class="text-muted">翻译将出现在问卷题目中（例：内容: \'cake\'（蛋糕））。留空则直接显示英文原名。</small>';
+            if (missingCount > 0) {
+                h += ' <span class="badge bg-warning text-dark ms-2">' + missingCount + ' 个待翻译</span>';
+            }
+            if (autoCount > 0) {
+                h += ' <span class="badge bg-info text-dark ms-1">' + autoCount + ' 个自动翻译</span>';
+            }
+            if (cacheCount > 0) {
+                h += ' <span class="badge bg-success ms-1">' + cacheCount + ' 个已确认</span>';
+            }
+            if (missingCount === 0 && autoCount === 0) {
+                h += ' <span class="badge bg-success ms-2">✓ 全部已翻译</span>';
+            }
+            h += '</div>';
+            h += '<div class="card-body"><div class="row" id="translation-grid">';
+            allPrompts.forEach(function(p) {
+                var inputBg = '';
+                var badgeHtml = '';
+                if (p.source === 'none') {
+                    inputBg = 'border-warning';
+                    badgeHtml = ' <span class="badge bg-warning text-dark ms-1" style="font-size:10px">待翻译</span>';
+                } else if (p.source === 'auto') {
+                    inputBg = 'border-info';
+                    badgeHtml = ' <span class="badge bg-info text-dark ms-1" style="font-size:10px">AI</span>';
+                } else if (p.source === 'cache') {
+                    badgeHtml = ' <span class="badge bg-success ms-1" style="font-size:10px">已确认</span>';
+                }
+                h += '<div class="col-md-6 col-lg-4 mb-3">';
+                h += '<label class="form-label mb-1" style="font-size:12px;word-break:break-all;line-height:1.4" title="' + he(p.name) + '">' + he(p.name) + badgeHtml + '</label>';
+                h += '<input type="text" class="form-control form-control-sm prompt-translation-input ' + inputBg + '"';
+                h += ' value="' + he(p.cn) + '"';
+                h += ' data-prompt="' + he(p.name) + '"';
+                h += ' placeholder="中文翻译"';
+                h += ' style="font-size:13px">';
+                h += '</div>';
+            });
+            h += '</div></div></div>';
+        }
+
+        // 图片数量校验
+        var imageWarnings = checkImageCounts();
+        if (imageWarnings.length > 0) {
+            h += '<div class="alert alert-warning mb-3"><strong>⚠️ 图片数量不匹配：</strong><ul class="mb-0 mt-1">';
+            imageWarnings.forEach(function(w) {
+                h += '<li><strong>' + he(w.emotion) + '</strong> — 预期 ' + w.expected + ' 张，实际 ' + w.actual + ' 张（prompt: ' + he(w.prompt) + '）</li>';
+            });
+            h += '</ul><small>建议检查文件名是否与方法名（source）匹配，或手动补充缺失图片后重新上传。</small></div>';
+        }
+
+        // 共享设置
+        h += '<div class="card mb-3"><div class="card-header bg-light"><strong>⚙️ 共享设置</strong></div><div class="card-body"><div class="row">';
+        h += '<div class="col-md-6 mb-3"><label class="form-label">问卷标题</label><input type="text" class="form-control" id="study-title" value="' + he(state.studyTitle) + '"></div>';
+        h += '<div class="col-md-6 mb-3"><label class="form-label">问答类型</label><div>';
+        h += '<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="emotion" id="qt-emotion"' + (state.questionTypes.includes('emotion')?' checked':'') + '><label class="form-check-label" for="qt-emotion">情感题</label></div>';
+        h += '<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" value="content" id="qt-content"' + (state.questionTypes.includes('content')?' checked':'') + '><label class="form-check-label" for="qt-content">内容题</label></div>';
+        h += '</div></div>';
+        h += '<div class="col-12 mb-3"><label class="form-label">实验说明</label><textarea class="form-control" id="instruct" rows="4">' + he(state.instructions) + '</textarea></div>';
+        h += '<div class="col-md-6 mb-3"><label class="form-label">图片最大边长 (px)</label><input type="number" class="form-control form-control-sm" id="max-size" value="' + state.imgSettings.max_size + '"></div>';
+        h += '<div class="col-md-6 mb-3"><label class="form-label">JPEG 质量 (%)</label><input type="number" class="form-control form-control-sm" id="quality" value="' + state.imgSettings.quality + '" min="1" max="100"></div>';
+        h += '</div></div></div>';
+
+        // 创建进度
+        if (state.confirming || state.batchPhase === 'creating') {
+            h += '<div class="card mb-3 border-info"><div class="card-body p-4">';
+            h += '<h6 class="mb-3 text-info"><span class="spinner-border spinner-border-sm me-2" role="status"></span>正在创建问卷...</h6>';
+            h += '<div class="progress mb-3" style="height: 6px;">';
+            h += '<div class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: 100%"></div>';
+            h += '</div>';
+            h += '<ul class="list-unstyled mb-2 small text-muted">';
+            h += '<li class="mb-1"><span class="text-success fw-bold me-1">&#10003;</span> 已完成：分析情感与方法映射</li>';
+            h += '<li class="mb-1"><span class="spinner-border spinner-border-sm me-1" role="status" style="width:12px;height:12px;border-width:2px"></span> 进行中：匹配图片文件、处理图片、生成问题...</li>';
+            h += '</ul>';
+            h += '<p class="text-muted small mb-0">&#9432; 处理较大图片集可能需要 30-60 秒，请耐心等待</p>';
+            h += '</div></div>';
+        }
+
+        if (state.confirmError) h += '<div class="alert alert-danger">' + he(state.confirmError) + '</div>';
+
+        h += '<div class="d-flex justify-content-between">';
+        h += '<button class="btn btn-secondary" id="back-btn"' + (state.confirming ? ' disabled' : '') + '>← 返回选择</button>';
+        var validResults = state.batchResults.filter(function(r) { return !r._error; });
+        var totalPrompts = 0;
+        validResults.forEach(function(r) { totalPrompts += (r.prompts ? r.prompts.length : 0); });
+        var estQuestions = totalPrompts * state.questionTypes.length;
+        h += '<button class="btn btn-success" id="confirm-btn"' + (state.confirming ? ' disabled' : '') + '>';
+        h += '创建问卷 <small>(' + validResults.length + ' 个情感, ~' + estQuestions + ' 题)</small></button>';
+        h += '</div>';
+
+        return h;
+    }
+
+    function he(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        var units = ['B', 'KB', 'MB', 'GB'];
+        var i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+    }
+
+    function handleFileSelect() {
+        var input = document.getElementById('zip-input');
+        if (!input || !input.files[0]) {
+            state.selectedFile = null; state.uploadError = ''; render(); return;
+        }
+        var file = input.files[0];
+        if (!file.name.toLowerCase().endsWith('.zip')) {
+            state.uploadError = '请选择 .zip 格式的文件'; state.selectedFile = null; render(); return;
+        }
+        if (file.size > 500 * 1024 * 1024) {
+            state.uploadError = '文件超过 500MB 限制（当前 ' + formatBytes(file.size) + '）';
+            state.selectedFile = null; render(); return;
+        }
+        state.selectedFile = { name: file.name, size: file.size, file: file };
+        state.uploadError = '';
+        render();
+    }
+
+    // ====== Event Binding ======
+    function bindEvents() {
+        if (state.step === 1) {
+            var zipInput = document.getElementById('zip-input');
+            if (zipInput) zipInput.onchange = handleFileSelect;
+
+            var uploadBtn = document.getElementById('upload-btn');
+            if (uploadBtn) uploadBtn.onclick = handleUpload;
+            return;
+        }
+
+        if (state.step === 2) {
+            var backBtn = document.getElementById('back-btn');
+            if (backBtn) backBtn.onclick = function() {
+                state.step = 1;
+                state.emotions = null;
+                state.analyzing = false;
+                state._autoAnalyzeTriggered = false;
+                state.batchResults = [];
+                state.batchPhase = '';
+                state.confirmError = '';
+                render();
+            };
+
+            var confirmBtn = document.getElementById('confirm-btn');
+            if (confirmBtn) confirmBtn.onclick = batchConfirm;
+        }
+    }
+
+    // ====== API Calls ======
+    async function handleUpload() {
+        state.uploadError = '';
+        if (!state.selectedFile || !state.selectedFile.file) {
+            state.uploadError = '请选择 zip 文件'; render(); return;
+        }
+
+        var file = state.selectedFile.file;
+        state.uploading = true;
+        state.uploadProgress = 0;
+        state.uploadSpeed = '';
+        state.uploadEta = '';
+        state.uploadPhase = '准备上传...';
+        state.emotions = null;
+        render();
+
+        var formData = new FormData();
+        formData.append('zipfile', file);
+
+        try {
+            var data = await uploadWithProgress('/admin/studies/upload-zip', formData, file.size);
+            state.uploading = false;
+            state.uploadId = data.upload_id || '';
+            state.emotions = data.emotions || [];
+            state.emotionCnMap = data.emotion_cn_map || {};
+            state._autoAnalyzeTriggered = false;
+            state.batchResults = [];
+            render();
+        } catch(e) {
+            state.uploading = false;
+            state.emotions = null;
+            state.uploadError = e.message;
+            render();
+        }
+    }
+
+    function uploadWithProgress(url, formData, fileSize) {
+        return new Promise(function(resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            var startTime = Date.now();
+            var lastUpdate = startTime;
+
+            xhr.open('POST', url);
+
+            xhr.upload.onprogress = function(e) {
+                if (!e.lengthComputable) return;
+                var now = Date.now();
+                if (now - lastUpdate < 200) return;
+                lastUpdate = now;
+
+                var pct = Math.round(e.loaded / e.total * 100);
+                state.uploadProgress = pct;
+                var elapsed = (now - startTime) / 1000;
+                var speed = elapsed > 0 ? e.loaded / elapsed : 0;
+                state.uploadSpeed = formatBytes(speed) + '/s';
+                if (pct < 100 && speed > 0) {
+                    var remaining = (fileSize - e.loaded) / speed;
+                    state.uploadEta = remaining > 60 ? '约 ' + Math.round(remaining / 60) + ' 分钟' : '约 ' + Math.round(remaining) + ' 秒';
+                }
+                state.uploadPhase = pct < 100 ? '上传中... ' + pct + '%' : '上传完成，服务端处理中...';
+                render();
+            };
+
+            xhr.onload = function() {
+                state.uploadProgress = 100;
+                state.uploadPhase = '处理完成 ✓';
+                render();
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try { resolve(JSON.parse(xhr.responseText)); }
+                    catch(e) { reject(new Error('响应解析失败')); }
+                } else {
+                    try {
+                        var err = JSON.parse(xhr.responseText);
+                        reject(new Error(err.detail || '上传失败 (HTTP ' + xhr.status + ')'));
+                    } catch(e) { reject(new Error('上传失败 (HTTP ' + xhr.status + ')')); }
+                }
+            };
+
+            xhr.onerror = function() { state.uploadPhase = '网络错误'; reject(new Error('网络错误')); };
+            xhr.ontimeout = function() { state.uploadPhase = '上传超时'; reject(new Error('上传超时')); };
+            xhr.onabort = function() { reject(new Error('上传已取消')); };
+            xhr.timeout = 600000;
+            xhr.send(formData);
+        });
+    }
+
+    async function batchAnalyze() {
+        if (!state.emotions || state.emotions.length === 0) return;
+
+        state.analyzing = true;
+        state.uploadError = '';
+        state.batchResults = [];
+        state.batchProgress = {done: 0, total: 1, current: '等待服务器响应...'};
+        render();
+
+        try {
+            var resp = await fetch('/admin/studies/analyze-zip', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    upload_id: state.uploadId,
+                    emotions: state.emotions
+                })
+            });
+
+            if (!resp.ok) {
+                var err = await resp.json();
+                throw new Error(err.detail || '分析失败');
+            }
+            var data = await resp.json();
+
+            // 批量模式返回 {results: [...], batch: true}
+            var results = data.results || [];
+            for (var i = 0; i < results.length; i++) {
+                var r = results[i];
+                state.batchProgress.done = i + 1;
+                state.batchProgress.total = results.length;
+                state.batchProgress.current = r.emotion_cn || r.emotion || '';
+                render();
+
+                if (r._error) {
+                    state.batchResults.push({
+                        emotion: r.emotion,
+                        emotion_cn: state.emotionCnMap[r.emotion] || r.emotion,
+                        _error: r._error,
+                        prompts: [],
+                        methods: [],
+                        translations: {}
+                    });
+                    continue;
+                }
+
+                var methods = (r.method_analysis && r.method_analysis.candidates) ?
+                    r.method_analysis.candidates.map(function(c) { return Object.assign({}, c); }) : [];
+                var translations = {};
+                if (r.prompts) {
+                    r.prompts.forEach(function(p) {
+                        var cn = (r.translations && r.translations[p.name]) || '';
+                        translations[p.name] = cn;
+                    });
+                }
+
+                state.batchResults.push({
+                    emotion: r.emotion,
+                    emotion_cn: r.emotion_cn || r.emotion,
+                    upload_id: r.upload_id || state.uploadId,
+                    prompts: r.prompts || [],
+                    methods: methods,
+                    translations: translations,
+                    total_size_mb: r.total_size_mb || 0
+                });
+            }
+        } catch(e) {
+            state.uploadError = e.message;
+        }
+
+        state.analyzing = false;
+        state.batchProgress.done = state.batchProgress.total;
+        state.step = 2;
+        render();
+    }
+
+    async function batchConfirm() {
+        // 读取共享设置
+        var titleEl = document.getElementById('study-title');
+        var instructEl = document.getElementById('instruct');
+        var maxSizeEl = document.getElementById('max-size');
+        var qualityEl = document.getElementById('quality');
+
+        state.studyTitle = titleEl ? titleEl.value : state.studyTitle;
+        state.instructions = instructEl ? instructEl.value : state.instructions;
+        state.imgSettings.max_size = maxSizeEl ? parseInt(maxSizeEl.value) || 512 : 512;
+        state.imgSettings.quality = qualityEl ? parseInt(qualityEl.value) || 85 : 85;
+
+        state.questionTypes = [];
+        if (document.getElementById('qt-emotion') && document.getElementById('qt-emotion').checked) state.questionTypes.push('emotion');
+        if (document.getElementById('qt-content') && document.getElementById('qt-content').checked) state.questionTypes.push('content');
+
+        if (state.questionTypes.length === 0) { state.confirmError = '请至少选择一种问题模板'; render(); return; }
+
+        // 先同步所有编辑中的方法名
+        syncAllMethodInputs();
+
+        // 从翻译编辑区读取所有翻译
+        var translationMap = {};
+        var translationInputs = document.querySelectorAll('.prompt-translation-input');
+        translationInputs.forEach(function(input) {
+            var pname = input.getAttribute('data-prompt');
+            var val = input.value.trim();
+            if (pname && val) translationMap[pname] = val;
+        });
+        // 更新 batchResults 中的 translations
+        state.batchResults.forEach(function(r) {
+            if (r._error || !r.translations) return;
+            Object.keys(r.translations).forEach(function(k) {
+                if (k in translationMap) r.translations[k] = translationMap[k];
+            });
+        });
+
+        state.confirming = true;
+        state.batchPhase = 'creating';
+        state.confirmError = '';
+
+        // 构建 emotions 列表
+        var emotionPayloads = [];
+        var validResults = state.batchResults.filter(function(r) { return !r._error; });
+
+        for (var i = 0; i < validResults.length; i++) {
+            var r = validResults[i];
+            emotionPayloads.push({
+                emotion: r.emotion,
+                emotion_cn: r.emotion_cn,
+                methods: (r.methods || []).filter(function(m) { return m.source; }).map(function(m) {
+                    return {source: m.source, method: m.method, variant: m.variant || null};
+                }),
+                prompt_translations: r.translations || {},
+            });
+        }
+
+        var studyCode = state.studyTitle.replace(/[^a-z0-9-]/gi, '').toLowerCase().replace(/^-+|-+$/g, '').substring(0, 16);
+        if (studyCode.length < 3) studyCode = '';  // 太短则让后端自动生成
+        var body = {
+            upload_id: state.uploadId,
+            study_name: state.studyTitle,
+            study_code: studyCode,
+            emotions: emotionPayloads,
+            description: state.studyTitle,
+            instructions: state.instructions,
+            title: state.studyTitle,
+            question_types: state.questionTypes,
+            save_translations: state.saveTranslations,
+            image_settings: state.imgSettings,
+            duplicate_action: 'rename'
+        };
+
+        state.batchProgress = {done: 0, total: 1, current: '正在处理所有图片...'};
+        render();
+
+        try {
+            var resp = await fetch('/admin/studies/confirm-zip', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            });
+            var data = await resp.json();
+            if (!resp.ok) throw new Error(data.detail || '创建失败');
+
+            state.confirming = false;
+            state.batchPhase = '';
+            state.batchProgress.done = 1;
+            state.result = {
+                success: 1,
+                failed: 0,
+                study: {
+                    emotion_cn: '多情感合并问卷',
+                    name: data.study ? data.study.name : state.studyTitle,
+                    code: data.study ? data.study.code : studyCode,
+                    question_count: data.study ? data.study.question_count : 0
+                },
+                processed_images: data.processed_images || 0,
+                skipped_images: data.skipped_images || 0,
+                skipped_details: data.skipped_details || [],
+                missing_images: data.missing_images || 0,
+                missing_details: data.missing_details || []
+            };
+            state.step = 3;
+            render();
+        } catch(e) {
+            state.confirming = false;
+            state.batchPhase = '';
+            state.confirmError = e.message;
+            render();
+        }
+    }
+
+    // ====== Global helpers ======
+    // 收集所有情感中的唯一方法（按 source 去重，取第一个出现的 method 名）
+    function collectAllMethods() {
+        var seen = {};
+        var result = [];
+        state.batchResults.forEach(function(r) {
+            if (r._error) return;
+            (r.methods || []).forEach(function(m) {
+                if (!seen[m.source]) {
+                    seen[m.source] = true;
+                    result.push({source: m.source, method: m.method});
+                }
+            });
+        });
+        return result;
+    }
+
+    // 收集所有情感中不重复的 prompt 名称及其翻译状态
+    function collectAllPrompts() {
+        var prompts = [];
+        var seen = {};
+        state.batchResults.forEach(function(r) {
+            if (r._error) return;
+            (r.prompts || []).forEach(function(p) {
+                if (!seen[p.name]) {
+                    seen[p.name] = true;
+                    var cn = (r.translations && r.translations[p.name]) || '';
+                    var source = (r.translation_sources && r.translation_sources[p.name]) || 'none';
+                    prompts.push({name: p.name, cn: cn, hasTranslation: !!cn, source: source});
+                }
+            });
+        });
+        // 排序：自动翻译 > 缓存 > 未翻译（同类按名称排序）
+        var sourceOrder = {auto: 0, cache: 1, none: 2};
+        prompts.sort(function(a, b) {
+            var sa = sourceOrder[a.source] != null ? sourceOrder[a.source] : 3;
+            var sb = sourceOrder[b.source] != null ? sourceOrder[b.source] : 3;
+            if (sa !== sb) return sa - sb;
+            return a.name.localeCompare(b.name);
+        });
+        return prompts;
+    }
+
+    // 检查每个情感下每个 prompt 的图片数量是否 = 方法数
+    function checkImageCounts() {
+        var warnings = [];
+        state.batchResults.forEach(function(r) {
+            if (r._error) return;
+            var methodCount = (r.methods || []).length;
+            (r.prompts || []).forEach(function(p) {
+                var imgCount = (p.images || []).length;
+                if (imgCount !== methodCount) {
+                    warnings.push({
+                        emotion: r.emotion + ' (' + (r.emotion_cn || '') + ')',
+                        prompt: p.name,
+                        expected: methodCount,
+                        actual: imgCount
+                    });
+                }
+            });
+        });
+        return warnings;
+    }
+
+    // 同步页面上的编辑中 input 值到 state
+    function syncAllMethodInputs() {
+        var inputs = document.querySelectorAll('.method-name-input');
+        inputs.forEach(function(inp) {
+            var source = inp.dataset.source;
+            var newName = inp.value.trim();
+            if (newName && source) {
+                syncMethodNameToState(source, newName);
+            }
+        });
+        // 同时处理情感中文名编辑
+        state.batchResults.forEach(function(r, ei) {
+            var cnInput = document.getElementById('emotion-cn-input-' + ei);
+            if (cnInput) {
+                r.emotion_cn = cnInput.value.trim();
+            }
+        });
+    }
+
+    function syncMethodNameToState(source, newName) {
+        state.batchResults.forEach(function(r) {
+            if (r._error) return;
+            (r.methods || []).forEach(function(m) {
+                if (m.source === source) {
+                    m.method = newName;
+                }
+            });
+        });
+    }
+
+    window.Wizard = {
+        // 编辑情感中文名
+        startEditEmotionCn: function(ei) {
+            var r = state.batchResults[ei];
+            if (!r) return;
+            var cell = document.getElementById('emotion-cn-cell-' + ei);
+            if (!cell) return;
+            cell.innerHTML = '<input type="text" class="form-control form-control-sm" ' +
+                'id="emotion-cn-input-' + ei + '" ' +
+                'value="' + he(r.emotion_cn || '') + '" ' +
+                'onkeydown="if(event.key===\'Enter\'){Wizard.commitEmotionCn(' + ei + ')}" ' +
+                'onblur="Wizard.commitEmotionCn(' + ei + ')" ' +
+                'autofocus style="width:120px">';
+            setTimeout(function() {
+                var inp = document.getElementById('emotion-cn-input-' + ei);
+                if (inp) inp.focus();
+            }, 50);
+        },
+        commitEmotionCn: function(ei) {
+            var inp = document.getElementById('emotion-cn-input-' + ei);
+            if (inp) {
+                var r = state.batchResults[ei];
+                if (r) r.emotion_cn = inp.value.trim();
+            }
+            render();
+        },
+        // 从方法名映射区修改方法名 → 同步到所有情感 + 刷新表格显示
+        syncMethodName: function(source, newName) {
+            if (!newName.trim()) return;
+            syncMethodNameToState(source, newName.trim());
+            render();  // 关键：刷新表格显示
+        }
+    };
+
+    render();
+})();
+</script>
+{% endblock %}

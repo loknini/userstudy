@@ -51,6 +51,14 @@
         <div class="card">
             <div class="card-body text-center py-5" id="startButtons">
                 <form action="/study/{{ study_code }}/start" method="post" id="newStudyForm">
+                    <!-- 用户特征字段（自动填充） -->
+                    <input type="hidden" name="screen_resolution" id="screenResolution">
+                    <input type="hidden" name="language" id="language">
+                    <input type="hidden" name="timezone" id="timezone">
+                    <input type="hidden" name="platform" id="platform">
+                    <input type="hidden" name="cookies_enabled" id="cookiesEnabled">
+                    <input type="hidden" name="do_not_track" id="doNotTrack">
+                    
                     <button type="submit" class="btn btn-primary btn-lg" id="startBtn">
                         <i class="bi bi-play-circle me-2"></i>
                         开始实验
@@ -126,9 +134,43 @@
 {% block extra_js %}
 <script>
     {% if study %}
-    // 有问卷代码时，检测是否有未完成的进度
+    <script>
+    // 收集用户特征并填充表单
+    function collectUserFeatures() {
+        // 1. 屏幕分辨率
+        const screenResolution = `${window.screen.width}x${window.screen.height}`;
+        document.getElementById('screenResolution').value = screenResolution;
+        
+        // 2. 浏览器语言
+        const language = navigator.language || navigator.userLanguage || 'unknown';
+        document.getElementById('language').value = language;
+        
+        // 3. 时区
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
+        document.getElementById('timezone').value = timezone;
+        
+        // 4. 操作系统平台
+        const platform = navigator.platform || 'unknown';
+        document.getElementById('platform').value = platform;
+        
+        // 5. Cookie是否启用
+        const cookiesEnabled = navigator.cookieEnabled ? 'true' : 'false';
+        document.getElementById('cookiesEnabled').value = cookiesEnabled;
+        
+        // 6. Do Not Track设置
+        const doNotTrack = navigator.doNotTrack || window.doNotTrack || 'unspecified';
+        document.getElementById('doNotTrack').value = doNotTrack;
+    }
+    
+    // 页面加载时收集特征
     document.addEventListener('DOMContentLoaded', function() {
         checkSavedProgress();
+        collectUserFeatures();  // 收集特征
+    });
+    
+    // 表单提交前重新收集（防止动态变化）
+    document.getElementById('newStudyForm').addEventListener('submit', function() {
+        collectUserFeatures();
     });
     {% endif %}
 

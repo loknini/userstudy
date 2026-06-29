@@ -1,8 +1,11 @@
 """
-数据清理服务 - 定时清理无效数据
+数据清理服务 - 定时清理无效数据 & 临时文件
 """
+import os
+import shutil
 from datetime import datetime, timedelta
-from typing import Dict, List
+from pathlib import Path
+from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -97,35 +100,108 @@ class CleanupService:
             self.db.close()
 
 
+def _cleanup_orphaned_temp_files(
+    temp_root: Path,
+    max_age_hours: int = 24,
+) -> Dict:
+    """
+    清理过期的临时文件。
+
+    清理对象：
+    1. _temp/{upload_id}/  — 已解压但未完成问卷创建的 zip 内容
+    2. _temp/tmp*.zip       — 上传过程中遗留的原始 zip 文件
+
+    Args:
+        temp_root: 临时文件根目录 (settings.upload_path / "_temp")
+        max_age_hours: 超过此小时数未修改的临时目录将被删除
+
+    Returns:
+        {deleted_dirs: int, deleted_files: int, freed_bytes: int}
+    """
+    if not temp_root.exists():
+        return {"deleted_dirs": 0, "deleted_files": 0, "freed_bytes": 0}
+
+    now = datetime.now()
+    cutoff = now.timestamp() - max_age_hours * 3600
+    deleted_dirs = 0
+    deleted_files = 0
+    freed_bytes = 0
+
+    for item in temp_root.iterdir():
+        try:
+            stat = item.stat()
+            if stat.st_mtime > cutoff:
+                continue
+
+            if item.is_dir():
+                # 计算目录大小
+                dir_size = sum(
+                    f.stat().st_size
+                    for f in item.rglob("*")
+                    if f.is_file()
+                )
+                shutil.rmtree(str(item), ignore_errors=True)
+                deleted_dirs += 1
+                freed_bytes += dir_size
+            elif item.is_file() and item.suffix.lower() == ".zip":
+                # 残留的原始 zip 文件（tmpXXXXXX.zip）
+                file_size = stat.st_size
+                item.unlink(missing_ok=True)
+                deleted_files += 1
+                freed_bytes += file_size
+        except OSError:
+            # 权限问题等，跳过继续
+            pass
+
+    return {
+        "deleted_dirs": deleted_dirs,
+        "deleted_files": deleted_files,
+        "freed_bytes": freed_bytes,
+    }
+
+
 def run_cleanup_job(zero_progress_timeout_hours: int = None):
     """
     定时任务入口函数
-    每天凌晨2点执行清理（使用策略系统配置）
+    每天凌晨2点执行清理（数据库记录 + 临时文件）
     """
     from datetime import datetime
     from app.database import SessionLocal
+    from app.config import get_settings
     from app.services.cleanup_strategies import SystemCleanupConfig
     
     print(f"[{datetime.now().isoformat()}] 开始执行数据清理任务...")
     
     db = SessionLocal()
     try:
-        # 使用策略系统执行所有启用的策略
+        # 1. 数据库清理：使用策略系统执行所有启用的策略
         results = SystemCleanupConfig.run_enabled_strategies(db)
         
-        total_deleted = sum(r.get("deleted_count", 0) for r in results if r["status"] == "success")
+        total_db_deleted = sum(
+            r.get("deleted_count", 0) for r in results if r["status"] == "success"
+        )
         
-        print(f"  完成: 已执行 {len(results)} 个策略")
-        print(f"  总计清理: {total_deleted} 条记录")
-        
+        print(f"  [DB] 完成: 已执行 {len(results)} 个策略, 清理 {total_db_deleted} 条记录")
         for r in results:
             status_icon = "✓" if r["status"] == "success" else "✗"
             print(f"    {status_icon} {r['name']}: {r.get('deleted_count', 0)} 条")
         
+        # 2. 文件系统清理：zip 临时文件
+        settings = get_settings()
+        temp_root = settings.upload_path / "_temp"
+        file_result = _cleanup_orphaned_temp_files(temp_root, max_age_hours=24)
+        
+        freed_mb = round(file_result["freed_bytes"] / (1024 * 1024), 1)
+        print(
+            f"  [FS] 临时文件清理: {file_result['deleted_dirs']} 个解压目录, "
+            f"{file_result['deleted_files']} 个残留 zip, 释放 {freed_mb} MB"
+        )
+        
         return {
             "timestamp": datetime.now().isoformat(),
-            "total_deleted": total_deleted,
-            "results": results
+            "total_db_deleted": total_db_deleted,
+            "db_results": results,
+            "temp_files": file_result,
         }
     except Exception as e:
         print(f"  错误: {type(e).__name__}: {str(e)}")

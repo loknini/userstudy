@@ -20,7 +20,7 @@ engine = create_engine(
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_pre_ping=True,  # 自动检测失效连接
     pool_recycle=3600,   # 1小时回收连接
-    echo=settings.DEBUG,  # 调试模式下打印SQL
+    echo=False,  # SQL 日志默认关闭，避免控制台噪声
 )
 
 # SQLite 特定优化

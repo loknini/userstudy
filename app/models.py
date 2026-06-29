@@ -60,7 +60,17 @@ class Participant(Base):
     started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     ip_address = Column(String(45), nullable=True)  # IPv6 最长 45 字符
     user_agent = Column(Text, nullable=True)
+    
+    # 新增：更多用户特征（用于分析，不去重）
+    screen_resolution = Column(String(20), nullable=True)  # 如 "1920x1080"
+    language = Column(String(10), nullable=True)  # 如 "zh-CN"
+    timezone = Column(String(50), nullable=True)  # 如 "Asia/Shanghai"
+    platform = Column(String(50), nullable=True)  # 如 "Win32", "MacIntel"
+    cookies_enabled = Column(String(10), nullable=True)  # "true" / "false"
+    do_not_track = Column(String(10), nullable=True)  # "1" / "0" / "unspecified"
+    
     completed_at = Column(DateTime, nullable=True)  # 完成时间
+    random_seed = Column(Integer, nullable=True)  # 随机种子，确保每个参与者的题目顺序一致
     
     # 关系
     study = relationship("Study", back_populates="participants")
@@ -74,7 +84,7 @@ class Participant(Base):
     )
     
     def __repr__(self) -> str:
-        return f"<Participant(id={self.id}, started_at={self.started_at})>"
+        return f"<Participant(id={self.id}, started_at={self.started_at}, ip={self.ip_address})>"
     
     @property
     def response_count(self) -> int:

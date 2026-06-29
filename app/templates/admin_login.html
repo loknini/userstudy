@@ -177,16 +177,16 @@
             </div>
             {% endif %}
             
-            <form method="get" action="/admin/">
+            <form method="post" action="/admin/login">
                 <div class="form-floating position-relative">
                     <i class="bi bi-key input-icon"></i>
-                    <input type="password" 
-                           class="form-control" 
-                           id="password" 
-                           name="pw" 
-                           placeholder="密码"
-                           required
-                           autofocus>
+                <input type="password" 
+                       class="form-control" 
+                       id="password" 
+                       name="password" 
+                       placeholder="密码"
+                       required
+                       autofocus>
                     <label for="password">管理员密码</label>
                 </div>
                 

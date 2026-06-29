@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 
 {% block title %}问卷列表 - 管理后台{% endblock %}
+{% block nav_href %}/admin/{% endblock %}
 {% block nav_title %}管理后台{% endblock %}
 
 {% block nav_extra %}
 <div class="navbar-nav ms-auto">
-    <a href="/admin/?pw={{ pw }}" class="btn btn-light btn-sm me-2">返回概览</a>
+    <a href="/admin/" class="btn btn-light btn-sm me-2">返回概览</a>
     <a href="/" class="btn btn-light btn-sm">返回首页</a>
 </div>
 {% endblock %}
@@ -18,7 +19,7 @@
                 <i class="bi bi-journal-check me-2"></i>
                 问卷列表
             </h4>
-            <a href="/admin/studies/create?pw={{ pw }}" class="btn btn-primary">
+            <a href="/admin/studies/create" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>
                 创建新问卷
             </a>
@@ -41,7 +42,7 @@
                         {% for study in studies %}
                         <tr>
                             <td>
-                                <span class="fw-medium">{{ study.name }}</span>
+                                <a href="/admin/study/{{ study.code }}" class="fw-medium text-decoration-none">{{ study.name }}</a>
                                 {% if study.description %}
                                 <br><small class="text-muted">{{ study.description[:50] }}{% if study.description|length > 50 %}...{% endif %}</small>
                                 {% endif %}
@@ -67,11 +68,14 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <a href="/admin/study/{{ study.code }}?pw={{ pw }}" class="btn btn-outline-primary">
+                                    <a href="/admin/study/{{ study.code }}" class="btn btn-outline-primary">
                                         <i class="bi bi-eye"></i> 管理
                                     </a>
                                     <button type="button" class="btn btn-outline-secondary" onclick="copyLink('{{ study.code }}')">
                                         <i class="bi bi-link-45deg"></i> 复制链接
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" data-study-code="{{ study.code }}" data-study-name="{{ study.name }}" onclick="confirmDelete(this)">
+                                        <i class="bi bi-trash"></i> 删除
                                     </button>
                                 </div>
                             </td>
@@ -87,7 +91,7 @@
                 <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
                 <h5 class="text-muted">暂无问卷</h5>
                 <p class="text-muted">点击上方按钮创建第一个问卷</p>
-                <a href="/admin/studies/create?pw={{ pw }}" class="btn btn-primary">
+                <a href="/admin/studies/create" class="btn btn-primary">
                     <i class="bi bi-plus-circle me-1"></i>
                     创建新问卷
                 </a>
@@ -96,17 +100,119 @@
         {% endif %}
     </div>
 </div>
+
+<!-- 删除确认弹窗 -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>确认删除</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>确定要删除问卷 <strong id="deleteStudyName"></strong> 吗？</p>
+        <div class="alert alert-warning mb-0">
+          <i class="bi bi-exclamation-circle me-1"></i>
+          此操作将<strong>永久删除</strong>该问卷的所有数据（包括参与者、回答记录），不可恢复！
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmDelete" onclick="executeDelete()">
+          <i class="bi bi-trash me-1"></i>确认删除
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 function copyLink(code) {
     const link = `${window.location.origin}/study/${code}`;
-    navigator.clipboard.writeText(link).then(() => {
-        alert('链接已复制: ' + link);
-    }).catch(() => {
-        alert('复制失败，请手动复制: ' + link);
-    });
+    
+    // 尝试使用现代的 clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(link).then(() => {
+            alert('链接已复制: ' + link);
+        }).catch(() => {
+            // 备用方法
+            fallbackCopyTextToClipboard(link);
+        });
+    } else {
+        // 备用方法
+        fallbackCopyTextToClipboard(link);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    
+    // 确保文本区域不可见
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    
+    // 选择文本
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        // 执行复制命令
+        const successful = document.execCommand('copy');
+        if (successful) {
+            alert('链接已复制: ' + text);
+        } else {
+            alert('复制失败，请手动复制: ' + text);
+        }
+    } catch (err) {
+        alert('复制失败，请手动复制: ' + text);
+    } finally {
+        // 清理临时元素
+        document.body.removeChild(textArea);
+    }
+}
+</script>
+<script>
+// 删除相关
+let deleteTargetCode = '';
+let deleteTargetName = '';
+
+function confirmDelete(btn) {
+    deleteTargetCode = btn.dataset.studyCode;
+    deleteTargetName = btn.dataset.studyName;
+    document.getElementById('deleteStudyName').textContent = deleteTargetName;
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+async function executeDelete() {
+    const btn = document.getElementById('btnConfirmDelete');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>删除中...';
+    
+    try {
+        const response = await fetch(`/admin/studies/${deleteTargetCode}`, {
+            method: 'DELETE',
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            alert(data.message || '删除成功');
+            window.location.reload();
+        } else {
+            const error = await response.json();
+            alert('删除失败：' + (error.detail || '未知错误'));
+        }
+    } catch (err) {
+        alert('请求失败：' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash me-1"></i>确认删除';
+    }
 }
 </script>
 {% endblock %}

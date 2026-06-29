@@ -53,15 +53,35 @@ class ExportTaskManager:
             if task_id in self.tasks:
                 self.tasks[task_id].update(kwargs)
     
-    def start_export_csv(self, task_id: str, export_dir: Path) -> None:
-        """启动 CSV 导出任务（后台线程）"""
+    def start_export_csv(self, task_id: str, export_dir: Path, fmt: str = "responses") -> None:
+        """启动 CSV 导出任务（后台线程）
+        
+        Args:
+            task_id: 任务ID
+            export_dir: 导出目录
+            fmt: 格式 - "responses" 长格式(每行一次答题) / "participants" 宽表(每行一个参与者)
+        """
         self.update_task(task_id, status="processing")
+        
+        format_label = "长格式(答题明细)" if fmt == "responses" else "宽表(参与者维度)"
         
         def export_worker():
             try:
                 with get_db_context() as db:
                     stats_service = StatsService(db)
-                    data = stats_service.export_responses_csv()
+                    
+                    if fmt == "participants":
+                        # 宽表模式：需要加载配置来获取题目顺序
+                        from app.config import get_settings
+                        from app.services.study import StudyService
+                        settings = get_settings()
+                        study_service = StudyService(db)
+                        config = study_service.get_active_config()
+                        if not config:
+                            raise ValueError("没有激活的问卷配置，无法导出宽表")
+                        data = stats_service.export_participants_wide(config)
+                    else:
+                        data = stats_service.export_responses_csv()
                     
                     # 生成 CSV
                     output = io.StringIO()
@@ -71,7 +91,7 @@ class ExportTaskManager:
                         writer.writerows(data)
                     
                     # 保存文件
-                    file_name = f"export_{task_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                    file_name = f"export_{task_id}_{fmt}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
                     file_path = export_dir / file_name
                     
                     export_dir.mkdir(parents=True, exist_ok=True)
@@ -83,7 +103,7 @@ class ExportTaskManager:
                         status="completed",
                         completed_at=datetime.utcnow(),
                         file_path=str(file_path),
-                        message=f"导出完成，共 {len(data)} 条记录"
+                        message=f"导出完成({format_label})，共 {len(data)} 条记录"
                     )
                     
             except Exception as e:

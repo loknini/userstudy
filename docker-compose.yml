@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8888:8888"
+    volumes:
+      # 持久化数据库
+      - ./user_study.db:/app/user_study.db
+      # 持久化上传的图片
+      - ./uploads:/app/uploads
+      - ./uploads_backup:/app/uploads_backup
+      # 持久化导出文件
+      - ./exports:/app/exports
+    environment:
+      - ADMIN_PASSWORD=your-secure-password
+      - SECRET_KEY=your-random-secret-key
+      - DATABASE_URL=sqlite:///./user_study.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

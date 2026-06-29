@@ -3,7 +3,7 @@ API 路由 - RESTful API 接口
 """
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -27,6 +27,21 @@ def verify_api_key(api_key: Optional[str] = None) -> bool:
     return api_key == settings.ADMIN_PASSWORD
 
 
+def verify_api_or_session(request: Request, api_key: Optional[str] = None) -> bool:
+    """验证 API 密钥或 Cookie 会话"""
+    if verify_api_key(api_key):
+        return True
+    # 导入 admin 模块的 session 验证
+    from app.routers.admin import verify_admin_session
+    return verify_admin_session(request)
+
+
+def require_api_auth(request: Request, api_key: Optional[str] = None):
+    """统一验证入口"""
+    if not verify_api_or_session(request, api_key):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
 @router.get("/health")
 async def health_check():
     """健康检查接口"""
@@ -35,12 +50,12 @@ async def health_check():
 
 @router.get("/config")
 async def get_config(
+    request: Request,
     api_key: Optional[str] = Query(None),
     service: StudyService = Depends(lambda db: StudyService(db))
 ):
     """获取当前研究配置"""
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    require_api_auth(request, api_key)
     
     config = service.get_active_config()
     if not config:
@@ -51,6 +66,7 @@ async def get_config(
 
 @router.get("/participants", response_model=ResponseBase)
 async def list_participants(
+    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     completed_only: bool = Query(False),
@@ -58,8 +74,7 @@ async def list_participants(
     db: Session = Depends(get_db)
 ):
     """获取参与者列表"""
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    require_api_auth(request, api_key)
     
     from app.models import Participant
     
@@ -80,14 +95,14 @@ async def list_participants(
 
 @router.get("/participants/{participant_id}")
 async def get_participant_detail(
+    request: Request,
     participant_id: str,
     api_key: Optional[str] = Query(None),
     service: StudyService = Depends(lambda db: StudyService(db)),
     db: Session = Depends(get_db)
 ):
     """获取参与者详情"""
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    require_api_auth(request, api_key)
     
     participant = service.get_participant(participant_id)
     if not participant:
@@ -98,6 +113,7 @@ async def get_participant_detail(
 
 @router.get("/responses")
 async def list_responses(
+    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     participant_id: Optional[str] = Query(None),
@@ -106,8 +122,7 @@ async def list_responses(
     db: Session = Depends(get_db)
 ):
     """获取响应列表"""
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    require_api_auth(request, api_key)
     
     from app.models import Response
     
@@ -130,13 +145,13 @@ async def list_responses(
 
 @router.get("/stats/overall")
 async def get_overall_stats(
+    request: Request,
     api_key: Optional[str] = Query(None),
     service: StudyService = Depends(lambda db: StudyService(db)),
     stats_service: StatsService = Depends(lambda db: StatsService(db))
 ):
     """获取整体统计数据"""
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    require_api_auth(request, api_key)
     
     config = service.get_active_config()
     if not config:
@@ -148,13 +163,13 @@ async def get_overall_stats(
 
 @router.get("/stats/charts")
 async def get_chart_data(
+    request: Request,
     api_key: Optional[str] = Query(None),
     service: StudyService = Depends(lambda db: StudyService(db)),
     stats_service: StatsService = Depends(lambda db: StatsService(db))
 ):
     """获取图表数据"""
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    require_api_auth(request, api_key)
     
     config = service.get_active_config()
     if not config:
@@ -166,13 +181,13 @@ async def get_chart_data(
 
 @router.get("/stats/consistency")
 async def get_consistency_analysis(
+    request: Request,
     api_key: Optional[str] = Query(None),
     service: StudyService = Depends(lambda db: StudyService(db)),
     stats_service: StatsService = Depends(lambda db: StatsService(db))
 ):
     """获取一致性分析数据"""
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    require_api_auth(request, api_key)
     
     config = service.get_active_config()
     if not config:
@@ -184,26 +199,30 @@ async def get_consistency_analysis(
 
 @router.post("/export", response_model=ResponseBase)
 async def create_export_task(
-    api_key: Optional[str] = Query(None)
+    request: Request,
+    api_key: Optional[str] = Query(None),
+    fmt: Optional[str] = Query("responses", description="导出格式: responses=长格式, participants=宽表")
 ):
     """创建导出任务"""
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    require_api_auth(request, api_key)
+    
+    if fmt not in ("responses", "participants"):
+        raise HTTPException(status_code=400, detail="无效的格式参数，可选: responses, participants")
     
     task_id = export_manager.create_task()
-    export_manager.start_export_csv(task_id, settings.BASE_DIR / "exports")
+    export_manager.start_export_csv(task_id, settings.BASE_DIR / "exports", fmt=fmt)
     
-    return ResponseBase(data={"task_id": task_id, "status": "processing"})
+    return ResponseBase(data={"task_id": task_id, "status": "processing", "format": fmt})
 
 
 @router.get("/export/{task_id}")
 async def get_export_task(
+    request: Request,
     task_id: str,
     api_key: Optional[str] = Query(None)
 ):
     """获取导出任务状态"""
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    require_api_auth(request, api_key)
     
     task = export_manager.get_task(task_id)
     if not task:
