@@ -53,8 +53,6 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
 
   deploy:
     runs-on: ubuntu-latest
@@ -62,11 +60,21 @@ jobs:
     if: github.ref == 'refs/heads/main'
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - name: Check secrets availability
+      id: check
+      run: |
+        if [ -z "$SERVER_HOST" ]; then
+          echo "enabled=false" >> $GITHUB_OUTPUT
+          echo "::notice::Skipping deploy - server secrets not configured"
+        else
+          echo "enabled=true" >> $GITHUB_OUTPUT
+        fi
+      env:
+        SERVER_HOST: ${{ secrets.SERVER_HOST }}
     
     # 部署到服务器（使用 SSH）
     - name: Deploy to server
+      if: steps.check.outputs.enabled == 'true'
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.SERVER_HOST }}
