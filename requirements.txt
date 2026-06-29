@@ -30,5 +30,6 @@ apscheduler>=3.10.0
 # 测试依赖
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
-httpx>=0.25.0
+httpx
+requests>=0.25.0
 pytest-cov>=4.1.0  # 覆盖率报告

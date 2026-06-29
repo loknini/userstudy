@@ -17,8 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY scripts/ ./scripts/
 COPY static/ ./static/
-COPY study_config.json .
 COPY run.py .
+# study_config.json 由运行时挂载/注入提供，不在镜像中内置
 
 # 创建上传目录
 RUN mkdir -p uploads uploads_backup exports
