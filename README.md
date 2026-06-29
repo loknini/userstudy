@@ -3,7 +3,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/docker-supported-blue.svg)](https://www.docker.com/)
-[![CI/CD](https://github.com/your-username/userstudy/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/userstudy/actions)
+[![CI](https://github.com/loknini/userstudy/actions/workflows/ci.yml/badge.svg)](https://github.com/loknini/userstudy/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 一个用于收集用户对情感图像生成模型主观评价的研究平台。支持多模型对比（SDXL、Textual Inversion、EmoGen、Ours），双维度评估（情感准确性、内容一致性），以及多问卷管理。
@@ -52,7 +52,7 @@ python run.py --mode prod --workers 4
 
 ```bash
 # 1. 克隆代码
-git clone https://github.com/your-username/userstudy.git
+git clone https://github.com/loknini/userstudy.git
 cd userstudy
 
 # 2. 修改环境变量（可选）
@@ -89,7 +89,7 @@ docker run -d \
 
 ```bash
 # 1. 下载部署脚本
-wget https://raw.githubusercontent.com/your-username/userstudy/main/deploy.sh
+wget https://raw.githubusercontent.com/loknini/userstudy/main/deploy.sh
 
 # 2. 修改配置
 export DOMAIN=your-domain.com

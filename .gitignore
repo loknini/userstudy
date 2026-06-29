@@ -44,9 +44,11 @@ ENV/
 *.db-wal
 
 # Uploads and exports (large binary files, don't track)
-uploads/
+# but allow .gitkeep to preserve directory structure for CI
+uploads/*
+!uploads/.gitkeep
 uploads_backup/
-exports/
+exports/*
 
 # Logs
 *.log
